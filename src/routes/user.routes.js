@@ -7,7 +7,7 @@ import {
   getPropertyById,
 } from "../controllers/property.controller.js";
 
-import {createProperty as postProperties,getPostProperties } from "../controllers/userController/user.controller.js";
+import {createProperty as postProperties,getPostProperties } from "../controllers/UserController/user.controller.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { protect } from "../middlewares/auth.middleware.js";
 import {
