@@ -9,13 +9,17 @@ const app = express();
 
 // ✅ CORS CONFIG (production + dev)
 const allowedOrigins = [
-  "http://localhost:5173", // Vite default
-  "http://localhost:5174", // Vite default
+  "http://localhost:5173",
+  "http://localhost:5174",
   "http://127.0.0.1:5173",
   "http://127.0.0.1:5174",
-  // production frontend URL add karna yaha
-];
 
+  "https://houzer.tech",
+  "https://www.houzer.tech",
+
+  // agar admin panel alag domain par hai
+  "https://admin.houzer.tech",
+];
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -36,6 +40,14 @@ app.use(
 app.use(cookieParser());
 
 app.use(express.json());
+
+
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Houser API Running"
+  });
+});
 
 // routes
 app.use("/api/", userRoutes);
