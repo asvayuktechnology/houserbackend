@@ -1,0 +1,1 @@
+ALTER TABLE "otps" ADD COLUMN "expires_at" timestamp NOT NULL;

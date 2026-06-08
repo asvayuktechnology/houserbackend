@@ -1,0 +1,111 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1775199501774,
+      "tag": "0000_damp_maestro",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1775206488581,
+      "tag": "0001_gray_human_fly",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775457428318,
+      "tag": "0002_magical_bishop",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1775464687321,
+      "tag": "0003_rich_loki",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1775465677144,
+      "tag": "0004_huge_hulk",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1775474048462,
+      "tag": "0005_omniscient_vector",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775625048024,
+      "tag": "0006_productive_satana",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1775628958898,
+      "tag": "0007_true_hemingway",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1776078181066,
+      "tag": "0008_glorious_spitfire",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1776079534826,
+      "tag": "0009_clear_magdalene",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1776747724214,
+      "tag": "0010_superb_madame_masque",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1776760093813,
+      "tag": "0011_silent_king_bedlam",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1776767441906,
+      "tag": "0012_parallel_the_anarchist",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1776927658279,
+      "tag": "0013_peaceful_stellaris",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1777273438846,
+      "tag": "0014_parallel_turbo",
+      "breakpoints": true
+    }
+  ]
+}

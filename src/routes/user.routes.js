@@ -1,0 +1,56 @@
+import express from "express";
+
+// controllers
+import {
+  createProperty,
+  getProperties,
+  getPropertyById,
+} from "../controllers/property.controller.js";
+
+import {createProperty as postProperties,getPostProperties } from "../controllers/userController/user.controller.js";
+import { validate } from "../middlewares/validate.middleware.js";
+import { protect } from "../middlewares/auth.middleware.js";
+import {
+  createPropertySchema,
+  getPropertiesQuerySchema,
+} from "../validators/property.validator.js";
+
+import { sendOtp, verifyOtp } from "../controllers/UserController/user.controller.js";
+
+const router = express.Router();
+
+// 🔐 AUTH
+router.post("/send-otp", sendOtp);
+router.post("/verify-otp", verifyOtp);
+
+// 🏠 CREATE PROPERTY
+router.post(
+  "/properties",
+  // protect, // enable later
+  validate(createPropertySchema),
+  createProperty
+);
+
+// 🔥 IMPORTANT: ID route BEFORE list route
+router.get("/properties/:id", (req, res, next) => {
+  console.log("✅ ROUTE HIT");
+  console.log("PARAM ID:", req.params.id);
+  next();
+}, protect, getPropertyById);
+
+// 🔍 GET ALL PROPERTIES
+router.get(
+  "/properties",
+  protect,
+  validate(getPropertiesQuerySchema, "query"),
+  getProperties
+);
+
+// Post Properties
+
+
+router.post("/post-property", protect, validate(createPropertySchema),postProperties );
+router.get("/post-property", protect,getPostProperties );
+// router.post("/post-property", validate(createPropertySchema),postProperties );
+
+export default router;
