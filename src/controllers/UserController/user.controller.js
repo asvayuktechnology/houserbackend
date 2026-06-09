@@ -168,7 +168,7 @@ export const getPostProperties = asyncHandler(async (req, res) => {
         ELSE NULL 
       END AS "ownerPhone"
 
-    FROM properties p
+    FROM post_properties p
 
     LEFT JOIN property_unlocks pu 
       ON p.id = pu.property_id 

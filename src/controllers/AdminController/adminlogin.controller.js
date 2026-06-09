@@ -71,7 +71,7 @@ console.log(email)
   // 🍪 Send refresh token in cookie
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV, // 👉 true in production
+    secure: process.env.NODE_ENV === "production", // 👉 true in production
     sameSite: "strict",
   });
 
