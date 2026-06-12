@@ -201,6 +201,8 @@ export const deleteDealer = asyncHandler(async (req, res) => {
   });
 });
 
+const BATCH_SIZE = 500;
+
 export const uploadDealers = asyncHandler(async (req, res) => {
   if (!req.file) {
     throw new ApiError("File is required", 400);
@@ -281,6 +283,12 @@ export const uploadDealers = asyncHandler(async (req, res) => {
       );
     }
 
+    const allExistingPhones = await db
+      .select({ phone: dealers.phone })
+      .from(dealers);
+
+    const existingPhones = new Set(allExistingPhones.map((r) => r.phone));
+
     const toInsert = [];
     const skippedRows = [];
     const seenPhones = new Set();
@@ -288,21 +296,7 @@ export const uploadDealers = asyncHandler(async (req, res) => {
     for (let i = 0; i < mappedRows.length; i++) {
       const row = mappedRows[i];
 
-      if (seenPhones.has(row.phone)) {
-        skippedRows.push({
-          row: i + 2,
-          reason: `Duplicate phone ${row.phone} in same file`,
-        });
-        continue;
-      }
-
-      const existing = await db
-        .select({ id: dealers.id })
-        .from(dealers)
-        .where(eq(dealers.phone, row.phone))
-        .limit(1);
-
-      if (existing.length) {
+      if (seenPhones.has(row.phone) || existingPhones.has(row.phone)) {
         skippedRows.push({
           row: i + 2,
           reason: `Phone ${row.phone} already exists`,
@@ -326,9 +320,10 @@ export const uploadDealers = asyncHandler(async (req, res) => {
     }
 
     let insertedCount = 0;
-    if (toInsert.length) {
-      const result = await db.insert(dealers).values(toInsert);
-      insertedCount = result.length ?? toInsert.length;
+    for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
+      const batch = toInsert.slice(i, i + BATCH_SIZE);
+      const result = await db.insert(dealers).values(batch);
+      insertedCount += result.length ?? batch.length;
     }
 
     res.status(200).json({
@@ -350,4 +345,13 @@ export const uploadDealers = asyncHandler(async (req, res) => {
     }
     throw new ApiError(error.message || "File processing failed", 500);
   }
+});
+
+// 🗑️ DELETE ALL DEALERS
+export const deleteAllDealers = asyncHandler(async (req, res) => {
+  await db.delete(dealers);
+  res.json({
+    success: true,
+    message: "All dealers deleted successfully",
+  });
 });

@@ -33,6 +33,8 @@ const REQUIRED_COLUMNS = [
   "MobileNumber",
 ];
 
+const BATCH_SIZE = 500;
+
 export const uploadFixedProperties = asyncHandler(async (req, res) => {
   if (!req.file) {
     throw new ApiError("File is required", 400);
@@ -112,25 +114,35 @@ export const uploadFixedProperties = asyncHandler(async (req, res) => {
       );
     }
 
+    const allExisting = await db
+      .select({
+        city: fixedProperties.city,
+        sector: fixedProperties.sector,
+        plotNumber: fixedProperties.plotNumber,
+        mobileNumber: fixedProperties.mobileNumber,
+        email: fixedProperties.email,
+      })
+      .from(fixedProperties);
+
+    const existingPlots = new Set(
+      allExisting.map((r) => `${r.city}|${r.sector}|${r.plotNumber}`)
+    );
+    const existingMobiles = new Set(allExisting.map((r) => r.mobileNumber));
+    const existingEmails = new Set(
+      allExisting.map((r) => r.email).filter(Boolean)
+    );
+
     const toInsert = [];
     const skippedRows = [];
+    const seenPlots = new Set();
+    const seenMobiles = new Set();
+    const seenEmails = new Set();
 
     for (let i = 0; i < mappedRows.length; i++) {
       const row = mappedRows[i];
+      const plotKey = `${row.city}|${row.sector}|${row.plotNumber}`;
 
-      const existing = await db
-        .select({ id: fixedProperties.id })
-        .from(fixedProperties)
-        .where(
-          and(
-            eq(fixedProperties.city, row.city),
-            eq(fixedProperties.sector, row.sector),
-            eq(fixedProperties.plotNumber, row.plotNumber)
-          )
-        )
-        .limit(1);
-
-      if (existing.length) {
+      if (existingPlots.has(plotKey) || seenPlots.has(plotKey)) {
         skippedRows.push({
           row: i + 2,
           reason: `Duplicate plot: ${row.city}/${row.sector}/${row.plotNumber}`,
@@ -138,13 +150,7 @@ export const uploadFixedProperties = asyncHandler(async (req, res) => {
         continue;
       }
 
-      const mobileExists = await db
-        .select({ id: fixedProperties.id })
-        .from(fixedProperties)
-        .where(eq(fixedProperties.mobileNumber, row.mobileNumber))
-        .limit(1);
-
-      if (mobileExists.length) {
+      if (existingMobiles.has(row.mobileNumber) || seenMobiles.has(row.mobileNumber)) {
         skippedRows.push({
           row: i + 2,
           reason: `Mobile ${row.mobileNumber} already exists`,
@@ -152,21 +158,17 @@ export const uploadFixedProperties = asyncHandler(async (req, res) => {
         continue;
       }
 
-      if (row.email) {
-        const emailExists = await db
-          .select({ id: fixedProperties.id })
-          .from(fixedProperties)
-          .where(eq(fixedProperties.email, row.email))
-          .limit(1);
-
-        if (emailExists.length) {
-          skippedRows.push({
-            row: i + 2,
-            reason: `Email ${row.email} already exists`,
-          });
-          continue;
-        }
+      if (row.email && (existingEmails.has(row.email) || seenEmails.has(row.email))) {
+        skippedRows.push({
+          row: i + 2,
+          reason: `Email ${row.email} already exists`,
+        });
+        continue;
       }
+
+      seenPlots.add(plotKey);
+      seenMobiles.add(row.mobileNumber);
+      if (row.email) seenEmails.add(row.email);
 
       toInsert.push({
         city: row.city,
@@ -185,9 +187,10 @@ export const uploadFixedProperties = asyncHandler(async (req, res) => {
     }
 
     let insertedCount = 0;
-    if (toInsert.length) {
-      const result = await db.insert(fixedProperties).values(toInsert);
-      insertedCount = result.length ?? toInsert.length;
+    for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
+      const batch = toInsert.slice(i, i + BATCH_SIZE);
+      const result = await db.insert(fixedProperties).values(batch);
+      insertedCount += result.length ?? batch.length;
     }
 
     res.status(200).json({
@@ -389,6 +392,15 @@ export const deleteFixedProperty = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     message: "Fixed property deleted successfully",
+  });
+});
+
+// 🗑️ DELETE ALL FIXED PROPERTIES
+export const deleteAllFixedProperties = asyncHandler(async (req, res) => {
+  await db.delete(fixedProperties);
+  res.json({
+    success: true,
+    message: "All fixed properties deleted successfully",
   });
 });
 
