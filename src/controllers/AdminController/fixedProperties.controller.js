@@ -1,11 +1,37 @@
 import fs from "fs";
 import csv from "csv-parser";
 import xlsx from "xlsx";
+import { or, ilike, eq, and, desc } from "drizzle-orm";
 import asyncHandler from "../../utils/asyncHandler.js";
 import { db } from "../../config/db/index.js";
-import { ilike, eq, and, desc } from "drizzle-orm";
-import { fixedproperties } from "../../config/db/schema.js";
 import { ApiError } from "../../utils/ApiError.js";
+import { fixedProperties } from "../../config/db/schema.js";
+import { fixedPropertyImportRowSchema } from "../../validators/fixedProperty.validator.js";
+
+const COLUMN_MAPPING = {
+  City: "city",
+  SectorId: "sector",
+  PlotNumber: "plotNumber",
+  CategoryCode: "categoryCode",
+  SubCategoryCode: "subCategoryCode",
+  Name: "name",
+  FatherName: "fatherName",
+  PermanentAddress: "permanentAddress",
+  CorrespondenceAddress: "correspondenceAddress",
+  MobileNumber: "mobileNumber",
+  email: "email",
+  ImageUrl: "imageUrl",
+};
+
+const REQUIRED_COLUMNS = [
+  "City",
+  "SectorId",
+  "PlotNumber",
+  "CategoryCode",
+  "SubCategoryCode",
+  "Name",
+  "MobileNumber",
+];
 
 export const uploadFixedProperties = asyncHandler(async (req, res) => {
   if (!req.file) {
@@ -13,99 +39,174 @@ export const uploadFixedProperties = asyncHandler(async (req, res) => {
   }
 
   const filePath = req.file.path;
-  let results = [];
+  let rawRows = [];
 
   try {
-    // ===== CSV HANDLING =====
     if (req.file.mimetype === "text/csv") {
-      // detect delimiter (comma or tab)
       const firstLine = fs.readFileSync(filePath, "utf-8").split("\n")[0];
       const separator = firstLine.includes("\t") ? "\t" : ",";
 
       await new Promise((resolve, reject) => {
         fs.createReadStream(filePath)
           .pipe(csv({ separator }))
-          .on("data", (data) => results.push(data))
+          .on("data", (data) => rawRows.push(data))
           .on("end", resolve)
           .on("error", reject);
       });
     } else {
-      // ===== EXCEL HANDLING =====
       const workbook = xlsx.readFile(filePath);
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      results = xlsx.utils.sheet_to_json(sheet);
+      rawRows = xlsx.utils.sheet_to_json(sheet);
     }
 
-    if (!results.length) {
+    if (!rawRows.length) {
       throw new ApiError("Uploaded file is empty", 400);
     }
 
-    // ===== HEADER VALIDATION =====
-    const requiredColumns = [
-      "city",
-      "plotNumber",
-      "category",
-      "propertyStatus",
-    ];
-
-    const headers = Object.keys(results[0]);
-
-    const missing = requiredColumns.filter((col) => !headers.includes(col));
-
-    if (missing.length) {
+    const headers = Object.keys(rawRows[0]);
+    const missingCols = REQUIRED_COLUMNS.filter(
+      (col) => !headers.includes(col)
+    );
+    if (missingCols.length) {
       throw new ApiError(
-        `Missing columns: ${missing.join(", ")}`,
+        `Missing required columns: ${missingCols.join(", ")}`,
         400
       );
     }
 
-    // ===== FORMAT DATA =====
-    const formattedData = results.map((row, index) => {
-      if (!row.city || !row.plotNumber) {
-        throw new ApiError(
-          `Row ${index + 1}: city and plotNumber are required`,
-          400
-        );
+    const mappedRows = [];
+    const validationErrors = [];
+
+    for (let i = 0; i < rawRows.length; i++) {
+      const row = rawRows[i];
+      const mapped = {};
+
+      for (const [csvCol, dbCol] of Object.entries(COLUMN_MAPPING)) {
+        mapped[dbCol] =
+          row[csvCol] !== undefined && row[csvCol] !== null
+            ? String(row[csvCol]).trim()
+            : "";
       }
 
-      return {
-        city: row.city.trim(),
-        sector: row.sector || null,
+      const result = fixedPropertyImportRowSchema.safeParse(mapped);
+
+      if (!result.success) {
+        const fields = {};
+        result.error.issues.forEach((issue) => {
+          fields[issue.path.join(".")] = issue.message;
+        });
+        validationErrors.push({ row: i + 2, fields });
+        continue;
+      }
+
+      mappedRows.push(result.data);
+    }
+
+    if (validationErrors.length) {
+      throw new ApiError(
+        JSON.stringify({
+          message: `Validation failed in ${validationErrors.length} row(s)`,
+          errors: validationErrors,
+        }),
+        400
+      );
+    }
+
+    const toInsert = [];
+    const skippedRows = [];
+
+    for (let i = 0; i < mappedRows.length; i++) {
+      const row = mappedRows[i];
+
+      const existing = await db
+        .select({ id: fixedProperties.id })
+        .from(fixedProperties)
+        .where(
+          and(
+            eq(fixedProperties.city, row.city),
+            eq(fixedProperties.sector, row.sector),
+            eq(fixedProperties.plotNumber, row.plotNumber)
+          )
+        )
+        .limit(1);
+
+      if (existing.length) {
+        skippedRows.push({
+          row: i + 2,
+          reason: `Duplicate plot: ${row.city}/${row.sector}/${row.plotNumber}`,
+        });
+        continue;
+      }
+
+      const mobileExists = await db
+        .select({ id: fixedProperties.id })
+        .from(fixedProperties)
+        .where(eq(fixedProperties.mobileNumber, row.mobileNumber))
+        .limit(1);
+
+      if (mobileExists.length) {
+        skippedRows.push({
+          row: i + 2,
+          reason: `Mobile ${row.mobileNumber} already exists`,
+        });
+        continue;
+      }
+
+      if (row.email) {
+        const emailExists = await db
+          .select({ id: fixedProperties.id })
+          .from(fixedProperties)
+          .where(eq(fixedProperties.email, row.email))
+          .limit(1);
+
+        if (emailExists.length) {
+          skippedRows.push({
+            row: i + 2,
+            reason: `Email ${row.email} already exists`,
+          });
+          continue;
+        }
+      }
+
+      toInsert.push({
+        city: row.city,
+        sector: row.sector,
         plotNumber: row.plotNumber,
-
-        category: row.category,
-        plotSize: row.plotSize,
-        propertyStatus: row.propertyStatus,
-
-        ownerName: row.ownerName,
-        ownerPhone: String(row.ownerPhone || "").trim(),
+        categoryCode: row.categoryCode,
+        subCategoryCode: row.subCategoryCode,
+        name: row.name,
+        fatherName: row.fatherName || null,
         permanentAddress: row.permanentAddress || null,
+        correspondenceAddress: row.correspondenceAddress || null,
+        mobileNumber: row.mobileNumber,
+        email: row.email || null,
+        imageUrl: row.imageUrl || null,
+      });
+    }
 
-        comments: row.comments || null,
-
-        images: row.images ? row.images.split(",") : [],
-
-        createdBy: req.user?.id || 1,
-        creatorRole: "admin",
-      };
-    });
-
-    // ===== INSERT =====
-    await db.insert(fixedproperties).values(formattedData);
+    let insertedCount = 0;
+    if (toInsert.length) {
+      const result = await db.insert(fixedProperties).values(toInsert);
+      insertedCount = result.length ?? toInsert.length;
+    }
 
     res.status(200).json({
       success: true,
-      message: "Properties uploaded successfully",
-      count: formattedData.length,
+      message: "Import completed",
+      data: {
+        total: mappedRows.length,
+        inserted: insertedCount,
+        skipped: skippedRows.length,
+        skippedRows,
+      },
     });
-
   } catch (error) {
-    throw new ApiError(error.message || "File processing failed", 500);
-  } finally {
-    // ===== CLEANUP =====
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    if (error instanceof ApiError) throw error;
+    if (error.code === "23505") {
+      const msg = error.detail || "Duplicate value violates unique constraint";
+      throw new ApiError(msg, 409);
     }
+    throw new ApiError("File processing failed", 500);
   }
 });
 
@@ -113,35 +214,43 @@ export const uploadFixedProperties = asyncHandler(async (req, res) => {
 
 export const getFixedProperties = asyncHandler(async (req, res) => {
   try {
-    const { city, category, status, search } = req.query;
+    const { city, category, mobileNumber, keyword } = req.query;
 
     let conditions = [];
 
     if (city) {
-      conditions.push(ilike(fixedproperties.city, `%${city}%`));
+      conditions.push(ilike(fixedProperties.city, `%${city}%`));
     }
 
     if (category) {
-      conditions.push(eq(fixedproperties.category, category));
+      conditions.push(eq(fixedProperties.category, category));
     }
 
-    if (status) {
-      conditions.push(eq(fixedproperties.propertyStatus, status));
+    if (mobileNumber) {
+      conditions.push(eq(fixedProperties.mobileNumber, mobileNumber));
     }
 
-    if (search) {
-      conditions.push(ilike(fixedproperties.ownerName, `%${search}%`));
+    if (keyword) {
+      conditions.push(
+        or(
+          ilike(fixedProperties.name, `%${keyword}%`),
+          ilike(fixedProperties.email, `%${keyword}%`)
+        )
+      );
     }
 
     const data = await db
       .select()
-      .from(fixedproperties)
+      .from(fixedProperties)
       .where(conditions.length ? and(...conditions) : undefined)
-      .orderBy(desc(fixedproperties.createdAt));
+      .orderBy(desc(fixedProperties.createdAt));
+
+    const totalCount = data.length; // filtered result count
 
     res.status(200).json({
       success: true,
-      count: data.length,
+      currentCount: data.length,
+      totalCount,
       data,
     });
 

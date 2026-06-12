@@ -4,7 +4,7 @@ import { ApiError } from "../utils/ApiError.js";
 export const adminProtect = (req, res, next) => {
   const auth = req.headers.authorization;
 
-  console.log("🔹 Authorization Header:", auth);
+  // console.log("🔹 Authorization Header:", auth);
 
   if (!auth || !auth.startsWith("Bearer")) {
     console.log("❌ No token provided");
@@ -22,12 +22,12 @@ export const adminProtect = (req, res, next) => {
 
     if (decodedRaw?.exp) {
       const currentTime = Math.floor(Date.now() / 1000);
-      console.log("⏱ Current Time:", currentTime);
-      console.log("⏳ Token Expiry Time:", decodedRaw.exp);
-      console.log(
-        "⌛ Time Left (sec):",
-        decodedRaw.exp - currentTime
-      );
+      // console.log("⏱ Current Time:", currentTime);
+      // console.log("⏳ Token Expiry Time:", decodedRaw.exp);
+      // console.log(
+      //   "⌛ Time Left (sec):",
+      //   decodedRaw.exp - currentTime
+      // );
     }
 
     // actual verification

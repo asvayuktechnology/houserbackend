@@ -1,0 +1,4 @@
+City,SectorId,PlotNumber,CategoryCode,SubCategoryCode,Name,FatherName,PermanentAddress,CorrespondenceAddress,MobileNumber,email,ImageUrl
+Delhi,12,101,R,RES,Rahul Sharma,Ram Sharma,Delhi-110001,Delhi-110001,9876543210,rahul@test.com,
+Mumbai,5,202,C,COM,Priya Singh,Amar Singh,Mumbai-400001,Mumbai-400001,9876543211,priya@test.com,https://example.com/img.jpg
+Noida,14,303,R,RES,Amit Verma,,Noida-201301,,9876543212,amit@test.com,

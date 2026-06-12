@@ -1,0 +1,3 @@
+City,SectorId,PlotNumber,CategoryCode,SubCategoryCode,Name,FatherName,PermanentAddress,CorrespondenceAddress,MobileNumber,email,ImageUrl
+Delhi,12,101,R,RES,,Ram Sharma,Delhi-110001,Delhi-110001,9876543220,invalid-email,
+Mumbai,,202,C,COM,Priya Singh,,Mumbai-400001,Mumbai-400001,short,priya@test.com,

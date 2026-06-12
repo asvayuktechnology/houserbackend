@@ -2,10 +2,10 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 
-// ensure uploads folder exists
-const uploadDir = "uploads";
+// ensure uploads/import folder exists
+const uploadDir = "uploads/import";
 if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
+  fs.mkdirSync(uploadDir, { recursive: true });
 }
 
 // storage config
@@ -30,7 +30,9 @@ const fileFilter = (req, file, cb) => {
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error("Only CSV and Excel files are allowed"), false);
+    const err = new Error("Only accept CSV and XLSX file");
+    err.isOperational = true;
+    cb(err, false);
   }
 };
 

@@ -117,11 +117,6 @@ router.get("/logout",logoutAdmin)
 
 // add csv properties
 
-router.post(
-  "/upload-properties",
-  cvsUpload.single("file"),
-  uploadFixedProperties
-);
-router.get("/fixed-properties", getFixedProperties);
+router.post("/upload-properties",adminProtect, cvsUpload.single("file"), uploadFixedProperties);
 
 export default router;

@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, text, integer, timestamp,boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, text, integer, timestamp,boolean, uniqueIndex } from "drizzle-orm/pg-core";
 import { json } from "drizzle-orm/pg-core";
 import { pgEnum } from "drizzle-orm/pg-core";
 
@@ -60,30 +60,49 @@ export const properties = pgTable("properties", {
 });
 
 // FIXED PROPERTIES TABLE (FOR ADMIN) - ADMIN CAN'T DELETE THESE, CAN ONLY CHANGE STATUS
-export const fixedproperties = pgTable("fixedproperties", {
-  id: serial("id").primaryKey(),
+export const fixedProperties = pgTable(
+  "fixed_properties",
+  {
+    id: serial("id").primaryKey(),
 
-  createdBy: integer("created_by"),
-  creatorRole: varchar("creator_role", { length: 10 }),
+    // 🔥 Property identity
+    city: varchar("city", { length: 100 }).notNull(),
+    sector: varchar("sector", { length: 50 }).notNull(),
+    plotNumber: varchar("plot_number", { length: 50 }).notNull(),
 
-  city: varchar("city", { length: 100 }).notNull(),
-  sector: varchar("sector", { length: 50 }),
-  plotNumber: varchar("plot_number", { length: 50 }),
+    categoryCode: varchar("category_code", { length: 50 }).notNull(),
+    subCategoryCode: varchar("sub_category_code", { length: 50 }).notNull(),
 
-  category: varchar("category", { length: 50 }),
-  plotSize: varchar("plot_size", { length: 50 }),
-  propertyStatus: varchar("property_status", { length: 10 }),
+    // 👤 Owner details
+    name: varchar("name", { length: 100 }).notNull(),
+    fatherName: varchar("father_name", { length: 100 }),
 
-  ownerName: varchar("owner_name", { length: 100 }),
-  ownerPhone: varchar("owner_phone", { length: 20 }),
-  permanentAddress: text("permanent_address"),
+    permanentAddress: text("permanent_address"),
+    correspondenceAddress: text("correspondence_address"),
 
-  comments: text("comments"),
+    mobileNumber: varchar("mobile_number", { length: 15 }).notNull(),
+    email: varchar("email", { length: 100 }),
 
-  images: json("images"),
+    // 🖼 Image (Cloudinary URL)
+    imageUrl: text("image_url"),
 
-  createdAt: timestamp("created_at").defaultNow(),
-});
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    // 🔥 1. Property duplicate protection (MOST IMPORTANT)
+    uniquePlot: uniqueIndex("uniq_city_sector_plot").on(
+      table.city,
+      table.sector,
+      table.plotNumber
+    ),
+
+    // 🔥 2. Mobile must be unique
+    uniqueMobile: uniqueIndex("uniq_mobile").on(table.mobileNumber),
+
+    // 🔥 3. Email unique (nullable allowed)
+    uniqueEmail: uniqueIndex("uniq_email").on(table.email),
+  })
+);
 
 // DEALERS TABLE 
 

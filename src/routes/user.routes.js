@@ -16,6 +16,8 @@ import {
 } from "../validators/property.validator.js";
 
 import { sendOtp, verifyOtp } from "../controllers/UserController/user.controller.js";
+import { getFixedProperties } from "../controllers/AdminController/fixedProperties.controller.js";
+import { protectAny } from "../middlewares/protectAny.middlreware.js";
 
 const router = express.Router();
 
@@ -51,6 +53,10 @@ router.get(
 
 router.post("/post-property", protect, validate(createPropertySchema),postProperties );
 router.get("/post-property", protect,getPostProperties );
+
+// Fixed Properties
+router.get("/fixed-properties", protectAny, getFixedProperties);
+
 // router.post("/post-property", validate(createPropertySchema),postProperties );
 
 export default router;
