@@ -113,6 +113,20 @@
       "when": 1781244744152,
       "tag": "0015_cooing_alice",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1781500000000,
+      "tag": "0016_new_dealers",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1781510000000,
+      "tag": "0017_add_user_id_to_dealers",
+      "breakpoints": true
     }
   ]
 }

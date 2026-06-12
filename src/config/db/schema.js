@@ -108,29 +108,23 @@ export const fixedProperties = pgTable(
 
 export const dealers = pgTable("dealers", {
   id: serial("id").primaryKey(),
-
-  userId: integer("user_id")
-    .references(() => users.id)
-    .notNull(),
-
+  userId: integer("user_id").references(() => users.id),
+  city: varchar("city", { length: 100 }).notNull(),
   name: varchar("name", { length: 100 }).notNull(),
-  email: varchar("email", { length: 100 }),
-  contact: varchar("contact", { length: 20 }).notNull(),
-
   address: text("address"),
-  area: varchar("area", { length: 100 }),
-
-  // 🔥 ADD THESE
+  website: varchar("website", { length: 255 }),
+  phone: varchar("phone", { length: 20 }).notNull(),
+  rating: varchar("rating", { length: 10 }),
   lat: varchar("lat", { length: 50 }).default("0"),
   lng: varchar("lng", { length: 50 }).default("0"),
 
-  // optional (readable address)
-  location: varchar("location", { length: 255 }),
-
-  logo: text("logo"),
-
-  createdAt: timestamp("created_at").defaultNow(),
-});
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueDealer: uniqueIndex("uniq_dealer_unique").on(
+    table.name, table.website, table.phone, table.lat, table.lng
+  ),
+  uniquePhone: uniqueIndex("uniq_dealer_phone").on(table.phone),
+}));
 // LEADS TABLE 
 export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),

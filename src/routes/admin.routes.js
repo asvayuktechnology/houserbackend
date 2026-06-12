@@ -1,5 +1,5 @@
 import express from "express";
-import { createDealer,deleteDealer,updateDealer,getDealerById, getDealers } from "../controllers/AdminController/dealer.controller.js";
+import { createDealer,deleteDealer,updateDealer,getDealerById, getDealers, uploadDealers } from "../controllers/AdminController/dealer.controller.js";
 import { createBanner, deleteBanner, getBanners } from "../controllers/AdminController/banner.controller.js";
 import { upload } from "../utils/multer.js";
 import cvsUpload from "../utils/csvMulter.js"
@@ -15,7 +15,8 @@ import { deleteProperty, getProperties, getPropertyById, updateProperty } from "
 import { getDashboardData } from "../controllers/AdminController/dashboard.controller.js";
 import { createUserSchema } from "../validators/user.validator.js";
 import { getAdminProperties } from "../controllers/AdminController/postProperties.controller.js";
-import { getFixedProperties, uploadFixedProperties } from "../controllers/AdminController/fixedProperties.controller.js";
+import { getFixedProperties, getFixedPropertyById, uploadFixedProperties, createFixedProperty, updateFixedProperty, deleteFixedProperty } from "../controllers/AdminController/fixedProperties.controller.js";
+import { createFixedPropertySchema, updateFixedPropertySchema } from "../validators/fixedProperty.validator.js";
 
 
 
@@ -115,8 +116,14 @@ router.get("/dashboard", adminProtect, getDashboardData);
 router.get("/post-properties", adminProtect, getAdminProperties );
 router.get("/logout",logoutAdmin)
 
-// add csv properties
-
+// CSV uploads
 router.post("/upload-properties",adminProtect, cvsUpload.single("file"), uploadFixedProperties);
+router.post("/upload-dealers", adminProtect, cvsUpload.single("file"), uploadDealers);
+
+// Fixed Properties CRUD
+router.post("/fixed-properties", adminProtect, createFixedProperty);
+router.get("/fixed-properties/:id", getFixedPropertyById);
+router.patch("/fixed-properties/:id", adminProtect, updateFixedProperty);
+router.delete("/fixed-properties/:id", adminProtect, deleteFixedProperty);
 
 export default router;

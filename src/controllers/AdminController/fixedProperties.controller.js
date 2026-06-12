@@ -213,50 +213,183 @@ export const uploadFixedProperties = asyncHandler(async (req, res) => {
 
 
 export const getFixedProperties = asyncHandler(async (req, res) => {
+  const { city, mobileNumber, category, keyword } = req.query;
+
+  let conditions = [];
+
+  if (city) {
+    conditions.push(ilike(fixedProperties.city, `%${city}%`));
+  }
+
+  if (mobileNumber) {
+    conditions.push(eq(fixedProperties.mobileNumber, mobileNumber));
+  }
+  if (category) {
+    conditions.push(eq(fixedProperties.categoryCode, category));
+  }
+
+  if (keyword) {
+    conditions.push(
+      or(
+        ilike(fixedProperties.name, `%${keyword}%`),
+        ilike(fixedProperties.email, `%${keyword}%`)
+      )
+    );
+  }
+
+  let data = [];
   try {
-    const { city, category, mobileNumber, keyword } = req.query;
-
-    let conditions = [];
-
-    if (city) {
-      conditions.push(ilike(fixedProperties.city, `%${city}%`));
-    }
-
-    if (category) {
-      conditions.push(eq(fixedProperties.category, category));
-    }
-
-    if (mobileNumber) {
-      conditions.push(eq(fixedProperties.mobileNumber, mobileNumber));
-    }
-
-    if (keyword) {
-      conditions.push(
-        or(
-          ilike(fixedProperties.name, `%${keyword}%`),
-          ilike(fixedProperties.email, `%${keyword}%`)
-        )
-      );
-    }
-
-    const data = await db
+    data = await db
       .select()
       .from(fixedProperties)
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(fixedProperties.createdAt));
-
-    const totalCount = data.length; // filtered result count
-
-    res.status(200).json({
-      success: true,
-      currentCount: data.length,
-      totalCount,
-      data,
-    });
-
   } catch (error) {
-    throw new ApiError(error.message || "Failed to fetch properties", 500);
+    data = [];
   }
+
+  res.status(200).json({
+    success: true,
+    currentCount: data.length,
+    totalCount: data.length,
+    data,
+  });
+});
+
+export const getFixedPropertyById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const result = await db
+    .select()
+    .from(fixedProperties)
+    .where(eq(fixedProperties.id, Number(id)));
+
+  if (!result.length) {
+    return res.status(404).json({
+      success: false,
+      message: "Fixed property not found",
+    });
+  }
+
+  res.json({
+    success: true,
+    data: result[0],
+  });
+});
+
+// ✅ CREATE SINGLE FIXED PROPERTY
+export const createFixedProperty = asyncHandler(async (req, res, next) => {
+  const {
+    city, sector, plotNumber, categoryCode, subCategoryCode,
+    name, fatherName, permanentAddress, correspondenceAddress,
+    mobileNumber, email, imageUrl
+  } = req.body;
+
+  if (!city || !sector || !plotNumber || !categoryCode || !subCategoryCode || !name || !mobileNumber) {
+    return next(new ApiError("Missing required fields", 400));
+  }
+
+  const existing = await db
+    .select({ id: fixedProperties.id })
+    .from(fixedProperties)
+    .where(
+      and(
+        eq(fixedProperties.city, city),
+        eq(fixedProperties.sector, sector),
+        eq(fixedProperties.plotNumber, plotNumber)
+      )
+    )
+    .limit(1);
+
+  if (existing.length) {
+    return next(new ApiError("Property with same city/sector/plot already exists", 400));
+  }
+
+  const mobileExists = await db
+    .select({ id: fixedProperties.id })
+    .from(fixedProperties)
+    .where(eq(fixedProperties.mobileNumber, mobileNumber))
+    .limit(1);
+
+  if (mobileExists.length) {
+    return next(new ApiError(`Mobile ${mobileNumber} already exists`, 400));
+  }
+
+  if (email) {
+    const emailExists = await db
+      .select({ id: fixedProperties.id })
+      .from(fixedProperties)
+      .where(eq(fixedProperties.email, email))
+      .limit(1);
+
+    if (emailExists.length) {
+      return next(new ApiError(`Email ${email} already exists`, 400));
+    }
+  }
+
+  const result = await db
+    .insert(fixedProperties)
+    .values({
+      city, sector, plotNumber, categoryCode, subCategoryCode,
+      name, fatherName: fatherName || null,
+      permanentAddress: permanentAddress || null,
+      correspondenceAddress: correspondenceAddress || null,
+      mobileNumber, email: email || null, imageUrl: imageUrl || null,
+    })
+    .returning();
+
+  res.status(201).json({
+    success: true,
+    data: result[0],
+  });
+});
+
+// ✅ UPDATE FIXED PROPERTY
+export const updateFixedProperty = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const updateData = { ...req.body };
+
+  const result = await db
+    .update(fixedProperties)
+    .set(updateData)
+    .where(eq(fixedProperties.id, Number(id)))
+    .returning();
+
+  if (!result.length) {
+    return res.status(404).json({
+      success: false,
+      message: "Fixed property not found",
+    });
+  }
+
+  res.json({
+    success: true,
+    data: result[0],
+  });
+});
+
+// ❌ DELETE FIXED PROPERTY
+export const deleteFixedProperty = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const existing = await db
+    .select()
+    .from(fixedProperties)
+    .where(eq(fixedProperties.id, Number(id)));
+
+  if (!existing.length) {
+    return res.status(404).json({
+      success: false,
+      message: "Fixed property not found",
+    });
+  }
+
+  await db.delete(fixedProperties).where(eq(fixedProperties.id, Number(id)));
+
+  res.json({
+    success: true,
+    message: "Fixed property deleted successfully",
+  });
 });
 
 // GET http://localhost:8000/api/fixed-properties?city=noida&category=residential&status=sell

@@ -1,223 +1,73 @@
-// import asyncHandler from "../../utils/asyncHandler.js";
-// import { db } from "../../config/db/index.js";
-// import { dealers, users } from "../../config/db/schema.js";
-// import { eq } from "drizzle-orm";
-// import { ApiError } from "../../utils/ApiError.js";
-// export const createDealer = asyncHandler(async (req, res, next) => {
-//   const data = req.body;
-
-//   // 🔥 basic check (minimum required fields)
-//   if (!data.name || !data.contact) {
-//     return next(new ApiError("Name and Contact are required", 400));
-//   }
-
-//   // 🔍 duplicate check (by contact)
-//   const existing = await db
-//     .select()
-//     .from(dealers)
-//     .where(eq(dealers.contact, data.contact));
-
-//   if (existing.length > 0) {
-//     return next(new ApiError("Dealer already exists", 400));
-//   }
-
-//   // 📸 optional logo (if multer used)
-//   if (req.file) {
-//     data.logo = req.file.path || req.file.url;
-//   }
-
-//   // ✅ INSERT DIRECT BODY
-//   const result = await db
-//     .insert(dealers)
-//     .values({
-//       ...data,
-//     })
-//     .returning();
-
-//   res.status(201).json({
-//     success: true,
-//     message: "Dealer created successfully",
-//     data: result[0],
-//   });
-// });
-
-// // ✅ GET ALL DEALERS
-// export const getDealers = asyncHandler(async (req, res) => {
-//   const result = await db.select().from(dealers);
-
-//   res.json({
-//     success: true,
-//     count: result.length,
-//     data: result,
-//   });
-// });
-
-// // ✅ GET DEALER BY ID
-// export const getDealerById = asyncHandler(async (req, res) => {
-//   const { id } = req.params;
-
-//   const result = await db
-//     .select()
-//     .from(dealers)
-//     .where(eq(dealers.id, id));
-
-//   if (!result.length) {
-//     return res.status(404).json({
-//       success: false,
-//       message: "Dealer not found",
-//     });
-//   }
-
-//   res.json({
-//     success: true,
-//     data: result[0],
-//   });
-// });
-
-// // ✅ UPDATE DEALER
-// export const updateDealer = asyncHandler(async (req, res) => {
-//   const { id } = req.params;
-
-//   const result = await db
-//     .update(dealers)
-//     .set(req.body)
-//     .where(eq(dealers.id, id))
-//     .returning();
-
-//   if (!result.length) {
-//     return res.status(404).json({
-//       success: false,
-//       message: "Dealer not found",
-//     });
-//   }
-
-//   res.json({
-//     success: true,
-//     data: result[0],
-//   });
-// });
-
-// // ❌ DELETE DEALER
-// export const deleteDealer = asyncHandler(async (req, res) => {
-//   const { id } = req.params;
-
-//   const result = await db
-//     .delete(dealers)
-//     .where(eq(dealers.id, id))
-//     .returning();
-
-//   if (!result.length) {
-//     return res.status(404).json({
-//       success: false,
-//       message: "Dealer not found",
-//     });
-//   }
-
-//   res.json({
-//     success: true,
-//     message: "Dealer deleted successfully",
-//   });
-// });
-
-
-
-
-// -------> NEW CODE <-------
-
+import fs from "fs";
+import csv from "csv-parser";
+import xlsx from "xlsx";
 import asyncHandler from "../../utils/asyncHandler.js";
 import { db } from "../../config/db/index.js";
-import { dealers, users } from "../../config/db/schema.js";
-import { eq } from "drizzle-orm";
+import { dealers } from "../../config/db/schema.js";
+import { eq, and, or } from "drizzle-orm";
 import { ApiError } from "../../utils/ApiError.js";
+import { dealerImportRowSchema } from "../../validators/dealer.validator.js";
 
-// ✅ CREATE DEALER (user + dealer sync)
+const DEALER_COLUMN_MAPPING = {
+  City: "city",
+  Name: "name",
+  Address: "address",
+  Website: "website",
+  Phone: "phone",
+  Rating: "rating",
+  Latitude: "lat",
+  Longitude: "lng",
+  UserId: "userId",
+};
+
+const DEALER_REQUIRED_COLUMNS = ["City", "Name", "Phone"];
+
 export const createDealer = asyncHandler(async (req, res, next) => {
-  const {
-    name,
-    email,
-    contact,
-    address,
-    area,
-    location,
-    lat,
-    lng,
-  } = req.body;
+  const { city, name, address, website, phone, rating, lat, lng } = req.body;
 
-  if (!name || !contact) {
-    return next(new ApiError("Name and Contact are required", 400));
+  if (!city || !name || !phone) {
+    return next(new ApiError("City, Name and Phone are required", 400));
   }
 
-  // 🔥 DEBUG (optional but useful)
-  console.log("BODY:", req.body);
-
-  // 🔍 user check
-  let existingUser = await db
-    .select()
-    .from(users)
-    .where(eq(users.phone, contact));
-
-  let userId;
-
-  if (existingUser.length > 0) {
-    userId = existingUser[0].id;
-
-    if (existingUser[0].role !== "dealer") {
-      await db
-        .update(users)
-        .set({ role: "dealer" })
-        .where(eq(users.id, userId));
-    }
-  } else {
-    const newUser = await db
-      .insert(users)
-      .values({
-        phone: contact,
-        role: "dealer",
-      })
-      .returning();
-
-    userId = newUser[0].id;
-  }
-
-  // 🔍 dealer exists?
-  const existingDealer = await db
+  const existing = await db
     .select()
     .from(dealers)
-    .where(eq(dealers.userId, userId));
+    .where(
+      and(
+        eq(dealers.name, name),
+        eq(dealers.website, website || ""),
+        eq(dealers.phone, phone),
+        eq(dealers.lat, lat || "0"),
+        eq(dealers.lng, lng || "0")
+      )
+    )
+    .limit(1);
 
-  if (existingDealer.length > 0) {
-    return next(new ApiError("Dealer already exists", 400));
+  if (existing.length > 0) {
+    return next(new ApiError("Dealer with same name, website, phone & location already exists", 400));
   }
 
-  // 📸 logo
-  let logo = null;
-  if (req.file) {
-    logo = req.file.path || req.file.url;
+  const phoneExists = await db
+    .select()
+    .from(dealers)
+    .where(eq(dealers.phone, phone))
+    .limit(1);
+
+  if (phoneExists.length > 0) {
+    return next(new ApiError("Dealer with this phone number already exists", 400));
   }
 
-  // 🔥 SAFE LAT LNG HANDLING
-  const safeLat =
-    lat !== undefined && lat !== null ? Number(lat) : null;
-
-  const safeLng =
-    lng !== undefined && lng !== null ? Number(lng) : null;
-
-  // 🔥 FINAL INSERT
   const result = await db
     .insert(dealers)
     .values({
-      userId,
+      city,
       name,
-      email,
-      contact,
       address,
-      area,
-      location,
-
-      lat: safeLat,   // ✅ FIXED
-      lng: safeLng,   // ✅ FIXED
-
-      logo,
+      website,
+      phone,
+      rating,
+      lat: lat || "0",
+      lng: lng || "0",
     })
     .returning();
 
@@ -227,10 +77,27 @@ export const createDealer = asyncHandler(async (req, res, next) => {
   });
 });
 
-
-// ✅ GET ALL DEALERS
 export const getDealers = asyncHandler(async (req, res) => {
-  const result = await db.select().from(dealers);
+  const { city, keyword } = req.query;
+  let conditions = [];
+
+  if (city) {
+    conditions.push(eq(dealers.city, city));
+  }
+
+  if (keyword) {
+    conditions.push(
+      or(
+        eq(dealers.name, `%${keyword}%`),
+        eq(dealers.phone, `%${keyword}%`)
+      )
+    );
+  }
+
+  const result = await db
+    .select()
+    .from(dealers)
+    .where(conditions.length ? and(...conditions) : undefined);
 
   res.json({
     success: true,
@@ -239,8 +106,6 @@ export const getDealers = asyncHandler(async (req, res) => {
   });
 });
 
-
-// ✅ GET DEALER BY ID
 export const getDealerById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -262,15 +127,36 @@ export const getDealerById = asyncHandler(async (req, res) => {
   });
 });
 
-
-// ✅ UPDATE DEALER
 export const updateDealer = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const updateData = { ...req.body };
 
-  let updateData = { ...req.body };
+  if (updateData.phone) {
+    const phoneExists = await db
+      .select()
+      .from(dealers)
+      .where(
+        and(
+          eq(dealers.phone, updateData.phone),
+          eq(dealers.id, Number(id))
+        )
+      )
+      .limit(1);
 
-  if (req.file) {
-    updateData.logo = req.file.path || req.file.url;
+    if (!phoneExists.length) {
+      const otherWithPhone = await db
+        .select()
+        .from(dealers)
+        .where(eq(dealers.phone, updateData.phone))
+        .limit(1);
+
+      if (otherWithPhone.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Phone number already in use by another dealer",
+        });
+      }
+    }
   }
 
   const result = await db
@@ -292,12 +178,9 @@ export const updateDealer = asyncHandler(async (req, res) => {
   });
 });
 
-
-// ❌ DELETE DEALER (role downgrade)
 export const deleteDealer = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  // 🔍 find dealer first
   const dealer = await db
     .select()
     .from(dealers)
@@ -310,19 +193,161 @@ export const deleteDealer = asyncHandler(async (req, res) => {
     });
   }
 
-  const userId = dealer[0].userId;
-
-  // ❌ delete dealer
   await db.delete(dealers).where(eq(dealers.id, Number(id)));
-
-  // 🔽 downgrade role
-  await db
-    .update(users)
-    .set({ role: "user" })
-    .where(eq(users.id, userId));
 
   res.json({
     success: true,
-    message: "Dealer deleted & user downgraded",
+    message: "Dealer deleted successfully",
   });
+});
+
+export const uploadDealers = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    throw new ApiError("File is required", 400);
+  }
+
+  const filePath = req.file.path;
+  let rawRows = [];
+
+  try {
+    if (req.file.mimetype === "text/csv") {
+      const firstLine = fs.readFileSync(filePath, "utf-8").split("\n")[0];
+      const separator = firstLine.includes("\t") ? "\t" : ",";
+
+      await new Promise((resolve, reject) => {
+        fs.createReadStream(filePath)
+          .pipe(csv({ separator }))
+          .on("data", (data) => rawRows.push(data))
+          .on("end", resolve)
+          .on("error", reject);
+      });
+    } else {
+      const workbook = xlsx.readFile(filePath);
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      rawRows = xlsx.utils.sheet_to_json(sheet);
+    }
+
+    if (!rawRows.length) {
+      throw new ApiError("Uploaded file is empty", 400);
+    }
+
+    const headers = Object.keys(rawRows[0]);
+    const missingCols = DEALER_REQUIRED_COLUMNS.filter(
+      (col) => !headers.includes(col)
+    );
+    if (missingCols.length) {
+      throw new ApiError(
+        `Missing required columns: ${missingCols.join(", ")}`,
+        400
+      );
+    }
+
+    const mappedRows = [];
+    const validationErrors = [];
+
+    for (let i = 0; i < rawRows.length; i++) {
+      const row = rawRows[i];
+      const mapped = {};
+
+      for (const [csvCol, dbCol] of Object.entries(DEALER_COLUMN_MAPPING)) {
+        const val =
+          row[csvCol] !== undefined && row[csvCol] !== null
+            ? String(row[csvCol]).trim()
+            : "";
+        mapped[dbCol] = dbCol === "phone" ? val.replace(/\s+/g, "") : val;
+      }
+
+      const result = dealerImportRowSchema.safeParse(mapped);
+
+      if (!result.success) {
+        const fields = {};
+        result.error.issues.forEach((issue) => {
+          fields[issue.path.join(".")] = issue.message;
+        });
+        validationErrors.push({ row: i + 2, fields });
+        continue;
+      }
+
+      mappedRows.push(result.data);
+    }
+
+    if (validationErrors.length) {
+      throw new ApiError(
+        JSON.stringify({
+          message: `Validation failed in ${validationErrors.length} row(s)`,
+          errors: validationErrors,
+        }),
+        400
+      );
+    }
+
+    const toInsert = [];
+    const skippedRows = [];
+    const seenPhones = new Set();
+
+    for (let i = 0; i < mappedRows.length; i++) {
+      const row = mappedRows[i];
+
+      if (seenPhones.has(row.phone)) {
+        skippedRows.push({
+          row: i + 2,
+          reason: `Duplicate phone ${row.phone} in same file`,
+        });
+        continue;
+      }
+
+      const existing = await db
+        .select({ id: dealers.id })
+        .from(dealers)
+        .where(eq(dealers.phone, row.phone))
+        .limit(1);
+
+      if (existing.length) {
+        skippedRows.push({
+          row: i + 2,
+          reason: `Phone ${row.phone} already exists`,
+        });
+        continue;
+      }
+
+      seenPhones.add(row.phone);
+
+      toInsert.push({
+        userId: row.userId ? Number(row.userId) : null,
+        city: row.city,
+        name: row.name,
+        address: row.address || null,
+        website: row.website || null,
+        phone: row.phone,
+        rating: row.rating || null,
+        lat: row.lat || "0",
+        lng: row.lng || "0",
+      });
+    }
+
+    let insertedCount = 0;
+    if (toInsert.length) {
+      const result = await db.insert(dealers).values(toInsert);
+      insertedCount = result.length ?? toInsert.length;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Import completed",
+      data: {
+        total: mappedRows.length,
+        inserted: insertedCount,
+        skipped: skippedRows.length,
+        skippedRows,
+      },
+    });
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    const pgErr = error;
+    if (pgErr.code === "23505" || (pgErr.message && pgErr.message.includes("23505"))) {
+      const msg = pgErr.detail || "Duplicate value violates unique constraint";
+      throw new ApiError(msg, 409);
+    }
+    throw new ApiError(error.message || "File processing failed", 500);
+  }
 });
