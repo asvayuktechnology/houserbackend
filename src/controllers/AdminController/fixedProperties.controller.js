@@ -216,9 +216,17 @@ export const uploadFixedProperties = asyncHandler(async (req, res) => {
 
 
 export const getFixedProperties = asyncHandler(async (req, res) => {
-  const { city, mobileNumber, category, keyword } = req.query;
+  const {
+    city,
+    mobileNumber,
+    category,
+    keyword,
+    export: isExport = "false",
+    page = 1,
+    limit = 20,
+  } = req.query;
 
-  let conditions = [];
+  const conditions = [];
 
   if (city) {
     conditions.push(ilike(fixedProperties.city, `%${city}%`));
@@ -227,6 +235,7 @@ export const getFixedProperties = asyncHandler(async (req, res) => {
   if (mobileNumber) {
     conditions.push(eq(fixedProperties.mobileNumber, mobileNumber));
   }
+
   if (category) {
     conditions.push(eq(fixedProperties.categoryCode, category));
   }
@@ -241,18 +250,29 @@ export const getFixedProperties = asyncHandler(async (req, res) => {
   }
 
   let data = [];
+
   try {
-    data = await db
+    let query = db
       .select()
       .from(fixedProperties)
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(fixedProperties.createdAt));
+
+    // export=true => no pagination, return all records
+    if (isExport !== "true") {
+      query = query.limit(Number(limit)).offset(
+        (Number(page) - 1) * Number(limit)
+      );
+    }
+
+    data = await query;
   } catch (error) {
     data = [];
   }
 
   res.status(200).json({
     success: true,
+    export: isExport === "true",
     currentCount: data.length,
     totalCount: data.length,
     data,
