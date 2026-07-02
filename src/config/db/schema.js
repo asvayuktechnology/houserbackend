@@ -80,7 +80,7 @@ export const fixedProperties = pgTable(
     permanentAddress: text("permanent_address"),
     correspondenceAddress: text("correspondence_address"),
 
-    mobileNumber: varchar("mobile_number", { length: 15 }).notNull(),
+    mobileNumber: varchar("mobile_number", { length: 15 }),
     email: varchar("email", { length: 100 }),
 
     // 🖼 Image (Cloudinary URL)
@@ -97,7 +97,7 @@ export const fixedProperties = pgTable(
     ),
 
     // 🔥 2. Mobile must be unique
-    uniqueMobile: uniqueIndex("uniq_mobile").on(table.mobileNumber),
+    // uniqueMobile: uniqueIndex("uniq_mobile").on(table.mobileNumber),
 
     // 🔥 3. Email unique (nullable allowed)
     uniqueEmail: uniqueIndex("uniq_email").on(table.email),
