@@ -1,8 +1,7 @@
 import { z } from "zod";
 
 export const createPropertySchema = z.object({
-  city: z.string().min(1, "City is required").lowercase(),
-
+ city: z.string().optional(),
   sector: z.string().optional(),
   plotNumber: z.string().optional(),
 
@@ -18,10 +17,8 @@ export const createPropertySchema = z.object({
 
   ownerName: z.string().optional(),
   // images: z.array(z.string()).optional(),
-  ownerPhone: z
-    .string()
-    .min(10, "Phone must be at least 10 digits")
-    .optional(),
+ 
+    ownerPhone: z.string().optional(),
 
   permanentAddress: z.string().optional(),
   comments: z.string().optional(),
