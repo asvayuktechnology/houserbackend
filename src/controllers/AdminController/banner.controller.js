@@ -6,7 +6,7 @@ import { eq, inArray } from "drizzle-orm";
 
 // ✅ CREATE
 export const createBanner = asyncHandler(async (req, res, next) => {
-  const { title, category } = req.body;
+  const { title, category, link } = req.body;
 
   if (!title) {
     return next(new ApiError("Title is required", 400));
@@ -20,6 +20,7 @@ export const createBanner = asyncHandler(async (req, res, next) => {
     title,
     category: category || "homepage", // ✅ default handle
     imageUrl: file.path,
+    link
   }));
 
   const result = await db.insert(banners).values(data).returning();
@@ -82,45 +83,34 @@ export const getBannerById = asyncHandler(async (req, res, next) => {
 });
 
 
-// ✅ 🔥 FINAL UPDATE (all-in-one)
 export const updateBanner = asyncHandler(async (req, res, next) => {
-  const { title, deleteIds, category } = req.body;
+  const { id } = req.params;
+  const { title, category, link } = req.body;
 
-  // 🗑️ DELETE
-  if (deleteIds && deleteIds.length > 0) {
-    await db
-      .delete(banners)
-      .where(inArray(banners.id, deleteIds.map(Number)));
+  const updateData = {};
+
+  if (title) updateData.title = title;
+  if (category) updateData.category = category;
+  if (link !== undefined) updateData.link = link;
+  if (req.files && req.files.length > 0) updateData.imageUrl = req.files[0].path;
+
+  if (Object.keys(updateData).length === 0) {
+    return next(new ApiError("No fields to update", 400));
   }
 
-  // ✏️ UPDATE (title + category)
-  if (title || category) {
-    await db.update(banners).set({
-      ...(title && { title }),
-      ...(category && { category }),
-    });
-  }
+  await db
+    .update(banners)
+    .set(updateData)
+    .where(eq(banners.id, Number(id)));
 
-  // ➕ ADD NEW
-  if (req.files && req.files.length > 0) {
-    if (!title) {
-      return next(new ApiError("Title required when adding images", 400));
-    }
-
-    const data = req.files.map(file => ({
-      title,
-      category: category || "homepage",
-      imageUrl: file.path,
-    }));
-
-    await db.insert(banners).values(data);
-  }
-
-  const updatedData = await db.select().from(banners);
+  const updatedBanner = await db
+    .select()
+    .from(banners)
+    .where(eq(banners.id, Number(id)));
 
   res.status(200).json({
     success: true,
     message: "Banner updated",
-    data: updatedData,
+    data: updatedBanner[0],
   });
 });

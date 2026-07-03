@@ -1,6 +1,6 @@
 import express from "express";
 import { createDealer,deleteDealer,updateDealer,getDealerById, getDealers, uploadDealers, deleteAllDealers } from "../controllers/AdminController/dealer.controller.js";
-import { createBanner, deleteBanner, getBanners } from "../controllers/AdminController/banner.controller.js";
+import { createBanner, deleteBanner, getBanners, updateBanner } from "../controllers/AdminController/banner.controller.js";
 import { upload } from "../utils/multer.js";
 import cvsUpload from "../utils/csvMulter.js"
 import { validate } from "../middlewares/validate.middleware.js";
@@ -77,6 +77,12 @@ router.get(
     adminProtect,
   upload("images", 1), 
   getBanners
+);
+router.patch(
+  "/banners/:id",
+    adminProtect,
+  upload("images", 1), 
+  updateBanner
 );
 router.delete(
   "/banners/:id",

@@ -1,7 +1,7 @@
 import fs from "fs";
 import csv from "csv-parser";
 import xlsx from "xlsx";
-import { or, ilike, eq, and, desc } from "drizzle-orm";
+import { or, ilike, eq, and, desc, count } from "drizzle-orm";
 import asyncHandler from "../../utils/asyncHandler.js";
 import { db } from "../../config/db/index.js";
 import { ApiError } from "../../utils/ApiError.js";
@@ -142,29 +142,29 @@ export const uploadFixedProperties = asyncHandler(async (req, res) => {
       const row = mappedRows[i];
       const plotKey = `${row.city}|${row.sector}|${row.plotNumber}`;
 
-      if (existingPlots.has(plotKey) || seenPlots.has(plotKey)) {
-        skippedRows.push({
-          row: i + 2,
-          reason: `Duplicate plot: ${row.city}/${row.sector}/${row.plotNumber}`,
-        });
-        continue;
-      }
+      // if (existingPlots.has(plotKey) || seenPlots.has(plotKey)) {
+      //   skippedRows.push({
+      //     row: i + 2,
+      //     reason: `Duplicate plot: ${row.city}/${row.sector}/${row.plotNumber}`,
+      //   });
+      //   continue;
+      // }
 
-      if (existingMobiles.has(row.mobileNumber) || seenMobiles.has(row.mobileNumber)) {
-        skippedRows.push({
-          row: i + 2,
-          reason: `Mobile ${row.mobileNumber} already exists`,
-        });
-        continue;
-      }
+      // if (existingMobiles.has(row.mobileNumber) || seenMobiles.has(row.mobileNumber)) {
+      //   skippedRows.push({
+      //     row: i + 2,
+      //     reason: `Mobile ${row.mobileNumber} already exists`,
+      //   });
+      //   continue;
+      // }
 
-      if (row.email && (existingEmails.has(row.email) || seenEmails.has(row.email))) {
-        skippedRows.push({
-          row: i + 2,
-          reason: `Email ${row.email} already exists`,
-        });
-        continue;
-      }
+      // if (row.email && (existingEmails.has(row.email) || seenEmails.has(row.email))) {
+      //   skippedRows.push({
+      //     row: i + 2,
+      //     reason: `Email ${row.email} already exists`,
+      //   });
+      //   continue;
+      // }
 
       seenPlots.add(plotKey);
       seenMobiles.add(row.mobileNumber);
@@ -209,6 +209,7 @@ export const uploadFixedProperties = asyncHandler(async (req, res) => {
       const msg = error.detail || "Duplicate value violates unique constraint";
       throw new ApiError(msg, 409);
     }
+     console.error("Upload error:", error);
     throw new ApiError("File processing failed", 500);
   }
 });
@@ -219,8 +220,9 @@ export const getFixedProperties = asyncHandler(async (req, res) => {
   const {
     city,
     mobileNumber,
-    category,
-    keyword,
+    sector,
+    plotNumber,
+    // keyword,
     export: isExport = "false",
     page = 1,
     limit = 20,
@@ -236,45 +238,66 @@ export const getFixedProperties = asyncHandler(async (req, res) => {
     conditions.push(eq(fixedProperties.mobileNumber, mobileNumber));
   }
 
-  if (category) {
-    conditions.push(eq(fixedProperties.categoryCode, category));
+  if (sector) {
+    conditions.push(eq(fixedProperties.sector, sector));
+  }
+  if (plotNumber) {
+    conditions.push(eq(fixedProperties.plotNumber, plotNumber));
   }
 
-  if (keyword) {
-    conditions.push(
-      or(
-        ilike(fixedProperties.name, `%${keyword}%`),
-        ilike(fixedProperties.email, `%${keyword}%`)
-      )
-    );
-  }
+  // if (keyword) {
+  //   conditions.push(
+  //     or(
+  //       ilike(fixedProperties.name, `%${keyword}%`),
+  //       ilike(fixedProperties.email, `%${keyword}%`)
+  //     )
+  //   );
+  // }
 
   let data = [];
+  let totalCount = 0;
 
   try {
+    // ✅ COUNT QUERY
+    const [countResult] = await db
+      .select({
+        totalCount: count(),
+      })
+      .from(fixedProperties)
+      .where(conditions.length ? and(...conditions) : undefined);
+
+    totalCount = Number(countResult?.totalCount || 0);
+
+    // ✅ MAIN DATA QUERY
     let query = db
       .select()
       .from(fixedProperties)
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(fixedProperties.createdAt));
 
-    // export=true => no pagination, return all records
+    // pagination only when export is NOT true
     if (isExport !== "true") {
-      query = query.limit(Number(limit)).offset(
-        (Number(page) - 1) * Number(limit)
-      );
+      const pageNum = Number(page) || 1;
+      const limitNum = Number(limit) || 20;
+
+      query = query.limit(limitNum).offset((pageNum - 1) * limitNum);
     }
 
     data = await query;
   } catch (error) {
-    data = [];
+    console.error("❌ getFixedProperties error:", error);
+
+    return res.status(500).json({
+      status: "error",
+      message: "Something went wrong",
+    });
   }
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     export: isExport === "true",
     currentCount: data.length,
-    totalCount: data.length,
+    totalCount,
     data,
   });
 });

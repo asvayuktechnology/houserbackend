@@ -127,6 +127,41 @@
       "when": 1781510000000,
       "tag": "0017_add_user_id_to_dealers",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1783055367670,
+      "tag": "0018_normal_blackheart",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1783055501374,
+      "tag": "0019_silly_sandman",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1783058134257,
+      "tag": "0020_spooky_maximus",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1783058597005,
+      "tag": "0021_next_wallflower",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1783072574978,
+      "tag": "0022_early_vampiro",
+      "breakpoints": true
     }
   ]
 }

@@ -80,7 +80,7 @@ export const fixedProperties = pgTable(
     permanentAddress: text("permanent_address"),
     correspondenceAddress: text("correspondence_address"),
 
-    mobileNumber: varchar("mobile_number", { length: 15 }),
+    mobileNumber: varchar("mobile_number"),
     email: varchar("email", { length: 100 }),
 
     // 🖼 Image (Cloudinary URL)
@@ -90,17 +90,17 @@ export const fixedProperties = pgTable(
   },
   (table) => ({
     // 🔥 1. Property duplicate protection (MOST IMPORTANT)
-    uniquePlot: uniqueIndex("uniq_city_sector_plot").on(
-      table.city,
-      table.sector,
-      table.plotNumber
-    ),
+    // uniquePlot: uniqueIndex("uniq_city_sector_plot").on(
+    //   table.city,
+    //   table.sector,
+    //   table.plotNumber
+    // ),
 
     // 🔥 2. Mobile must be unique
     // uniqueMobile: uniqueIndex("uniq_mobile").on(table.mobileNumber),
 
     // 🔥 3. Email unique (nullable allowed)
-    uniqueEmail: uniqueIndex("uniq_email").on(table.email),
+    // uniqueEmail: uniqueIndex("uniq_email").on(table.email),
   })
 );
 
@@ -120,10 +120,10 @@ export const dealers = pgTable("dealers", {
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
-  uniqueDealer: uniqueIndex("uniq_dealer_unique").on(
-    table.name, table.website, table.phone, table.lat, table.lng
-  ),
-  uniquePhone: uniqueIndex("uniq_dealer_phone").on(table.phone),
+  // uniqueDealer: uniqueIndex("uniq_dealer_unique").on(
+  //   table.name, table.website, table.phone, table.lat, table.lng
+  // ),
+  // uniquePhone: uniqueIndex("uniq_dealer_phone").on(table.phone),
 }));
 // LEADS TABLE 
 export const leads = pgTable("leads", {
@@ -151,6 +151,7 @@ export const banners = pgTable("banners", {
   title: varchar("title", { length: 255 }).notNull(),
 
   imageUrl: text("image_url").notNull(),
+  link: text("link"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

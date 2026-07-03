@@ -4,7 +4,7 @@ import xlsx from "xlsx";
 import asyncHandler from "../../utils/asyncHandler.js";
 import { db } from "../../config/db/index.js";
 import { dealers } from "../../config/db/schema.js";
-import { eq, and, or } from "drizzle-orm";
+import { eq, and, or, ilike, desc, count } from "drizzle-orm";
 import { ApiError } from "../../utils/ApiError.js";
 import { dealerImportRowSchema } from "../../validators/dealer.validator.js";
 
@@ -78,32 +78,82 @@ export const createDealer = asyncHandler(async (req, res, next) => {
 });
 
 export const getDealers = asyncHandler(async (req, res) => {
-  const { city, keyword } = req.query;
-  let conditions = [];
+    const {
+    city,
+    phone,
+    name,
+    email,
+    keyword,
+    export: isExport = "false",
+    page = 1,
+    limit = 20,
+  } = req.query;
 
-  if (city) {
-    conditions.push(eq(dealers.city, city));
-  }
+  const conditions = [];
 
-  if (keyword) {
-    conditions.push(
-      or(
-        eq(dealers.name, `%${keyword}%`),
-        eq(dealers.phone, `%${keyword}%`)
-      )
-    );
-  }
+    if (city) {
+      conditions.push(ilike(dealers.city, `%${city}%`));
+    }
+  
+    if (phone) {
+      conditions.push(eq(dealers.phone, phone));
+    }
+    if (name) {
+      conditions.push(eq(dealers.name, name));
+    }
+    if (email) {
+      conditions.push(eq(dealers.email, email));
+    }
+  
+  
+    if (keyword) {
+      conditions.push(
+        or(
+          ilike(dealers.address, `%${keyword}%`),
+          ilike(dealers.rating, `%${keyword}%`),
+        )
+      );
+    }
+  
+    let data = [];
+      let totalCount = 0;
 
-  const result = await db
-    .select()
-    .from(dealers)
-    .where(conditions.length ? and(...conditions) : undefined);
+    try {
 
-  res.json({
-    success: true,
-    count: result.length,
-    data: result,
-  });
+          const [countResult] = await db
+            .select({
+              totalCount: count(),
+            })
+            .from(dealers)
+            .where(conditions.length ? and(...conditions) : undefined);
+      
+          totalCount = Number(countResult?.totalCount || 0);
+
+      let query = db
+        .select()
+        .from(dealers)
+        .where(conditions.length ? and(...conditions) : undefined)
+        .orderBy(desc(dealers.createdAt));
+  
+      // export=true => no pagination, return all records
+      if (isExport !== "true") {
+        query = query.limit(Number(limit)).offset(
+          (Number(page) - 1) * Number(limit)
+        );
+      }
+  
+      data = await query;
+    } catch (error) {
+      data = [];
+    }
+
+    res.status(200).json({
+      success: true,
+      // export: isExport === "true",
+      currentCount: data.length,
+      totalCount,
+      data,
+    });
 });
 
 export const getDealerById = asyncHandler(async (req, res) => {
@@ -296,13 +346,13 @@ export const uploadDealers = asyncHandler(async (req, res) => {
     for (let i = 0; i < mappedRows.length; i++) {
       const row = mappedRows[i];
 
-      if (seenPhones.has(row.phone) || existingPhones.has(row.phone)) {
-        skippedRows.push({
-          row: i + 2,
-          reason: `Phone ${row.phone} already exists`,
-        });
-        continue;
-      }
+      // if (seenPhones.has(row.phone) || existingPhones.has(row.phone)) {
+      //   skippedRows.push({
+      //     row: i + 2,
+      //     reason: `Phone ${row.phone} already exists`,
+      //   });
+      //   continue;
+      // }
 
       seenPhones.add(row.phone);
 
