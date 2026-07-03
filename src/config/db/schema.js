@@ -14,13 +14,30 @@ export const bannerCategoryEnum = pgEnum("banner_category", [
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
 
-  phone: varchar("phone", { length: 15 }).notNull().unique(),
+  name: varchar("name", { length: 100 }).notNull(),
 
-  role: varchar("role", { length: 10 }).default("user"), // user / dealer / admin 
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  avatar: varchar("avatar", { length: 500 }),
 
-  isActive: boolean("is_active").default(true), // for blocking users
+  password: varchar("password_hash", { length: 255 }).notNull(),
+  role: varchar("role", { length: 10 }).default("user"),  
 
-  createdAt: timestamp("created_at").defaultNow(), // for record-keeping
+  phone: varchar("phone", { length: 15 }).unique(),
+
+  companyName: varchar("company_name", { length: 255 }),
+  address: varchar("address", { length: 500 }),
+  city: varchar("city", { length: 100 }),
+  state: varchar("state", { length: 100 }),
+
+  isActive: boolean("is_active").default(true).notNull(),
+
+  emailVerified: boolean("email_verified").default(false).notNull(),
+  emailVerifiedAt: timestamp("email_verified_at"),
+
+  lastLogin: timestamp("last_login"),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // OTP TABLE

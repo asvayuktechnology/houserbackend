@@ -15,7 +15,8 @@ import {
   getPropertiesQuerySchema,
 } from "../validators/property.validator.js";
 
-import { sendOtp, verifyOtp } from "../controllers/UserController/user.controller.js";
+import { sendOtp, verifyOtp, loginUser } from "../controllers/UserController/user.controller.js";
+import { loginUserSchema } from "../validators/user.validator.js";
 import { getFixedProperties } from "../controllers/AdminController/fixedProperties.controller.js";
 import { getDealers } from "../controllers/AdminController/dealer.controller.js";
 import { protectAny } from "../middlewares/protectAny.middlreware.js";
@@ -23,6 +24,7 @@ import { protectAny } from "../middlewares/protectAny.middlreware.js";
 const router = express.Router();
 
 // 🔐 AUTH
+router.post("/login", validate(loginUserSchema), loginUser);
 router.post("/send-otp", sendOtp);
 router.post("/verify-otp", verifyOtp);
 

@@ -94,6 +94,7 @@ export const updateBanner = asyncHandler(async (req, res, next) => {
   if (link !== undefined) updateData.link = link;
   if (req.files && req.files.length > 0) updateData.imageUrl = req.files[0].path;
 
+  
   if (Object.keys(updateData).length === 0) {
     return next(new ApiError("No fields to update", 400));
   }

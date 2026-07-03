@@ -13,7 +13,7 @@ import { getPropertiesQuerySchema } from "../validators/property.validator.js";
 import { deleteProperty, getProperties, getPropertyById, updateProperty } from "../controllers/AdminController/properties.controller.js";
 
 import { getDashboardData } from "../controllers/AdminController/dashboard.controller.js";
-import { createUserSchema } from "../validators/user.validator.js";
+import { createUserSchema, updateUserSchema, getUserParamsSchema } from "../validators/user.validator.js";
 import { getAdminProperties } from "../controllers/AdminController/postProperties.controller.js";
 import { getFixedProperties, getFixedPropertyById, uploadFixedProperties, createFixedProperty, updateFixedProperty, deleteFixedProperty, deleteAllFixedProperties } from "../controllers/AdminController/fixedProperties.controller.js";
 import { createFixedPropertySchema, updateFixedPropertySchema } from "../validators/fixedProperty.validator.js";
@@ -95,7 +95,6 @@ router.delete(
 
 
 // 🔥 PROTECTED ADMIN ACTION
-router.post("/create-user", adminProtect,validate(createUserSchema), createUserByAdmin);
 
 router.get(
   "/properties",
@@ -111,9 +110,10 @@ router.delete("/properties/:id", adminProtect,deleteProperty);
 
 // admin controll on users
 
+router.post("/create-user", validate(createUserSchema), adminProtect, createUserByAdmin);
 router.get("/users", adminProtect, getUsers);
-router.put("/users/:id", adminProtect, updateUser);
-router.delete("/users/:id", adminProtect, deleteUser);
+router.put("/users/:id", validate(getUserParamsSchema, "params"), validate(updateUserSchema), adminProtect, updateUser);
+router.delete("/users/:id", validate(getUserParamsSchema, "params"), adminProtect, deleteUser);
 
 // dashboard data
 router.get("/dashboard", adminProtect, getDashboardData);

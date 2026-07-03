@@ -5,9 +5,52 @@ import { users, otps } from "../../config/db/schema.js";
 import { ApiError } from "../../utils/ApiError.js";
 import { eq, and, gt ,sql} from "drizzle-orm";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 
 import { postProperties } from "../../config/db/schema.js";
 
+
+export const loginUser = asyncHandler(async (req, res, next) => {
+  const { email, password } = req.body;
+
+  const user = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, email));
+
+  if (!user.length) {
+    return next(new ApiError("Invalid email or password", 401));
+  }
+
+  const isMatch = await bcrypt.compare(password, user[0].password);
+
+  if (!isMatch) {
+    return next(new ApiError("Invalid email or password", 401));
+  }
+
+  const accessToken = jwt.sign(
+    { id: user[0].id, role: user[0].role },
+    process.env.JWT_SECRET,
+    { expiresIn: "5m" }
+  );
+
+  const refreshToken = jwt.sign(
+    { id: user[0].id, role: user[0].role },
+    process.env.JWT_REFRESH_SECRET,
+    { expiresIn: "7d" }
+  );
+
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+  });
+
+  res.json({
+    success: true,
+    token: accessToken,
+  });
+});
 
 export const getMyLeads = asyncHandler(async (req, res) => {
   const userId = req.user.id; 
