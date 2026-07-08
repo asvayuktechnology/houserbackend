@@ -3,6 +3,9 @@ import cors from "cors";
 import errorMiddleware from "./middlewares/error.middleware.js";
 import userRoutes from "./routes/user.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
+import postRoutes from "./routes/post.route.js";
+import settingRoutes from "./routes/setting.routes.js";
+import leadRoutes from "./routes/lead.route.js";
 import cookieParser from "cookie-parser";
 
 const app = express();
@@ -40,6 +43,7 @@ app.use(
 app.use(cookieParser());
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 
 app.get("/", (req, res) => {
@@ -51,6 +55,9 @@ app.get("/", (req, res) => {
 
 // routes
 app.use("/api/", userRoutes);
+app.use("/api/", postRoutes);
+app.use("/api/", settingRoutes);
+app.use("/api/", leadRoutes);
 app.use("/api/admin", adminRoutes);
 
 // error middleware (last)

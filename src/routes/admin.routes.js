@@ -28,10 +28,6 @@ router.post("/login", adminLogin);
 // refresh Token
 router.post("/refresh-token", refreshToken);
 
-// 🔐 LOGIN
-router.post("/login", adminLogin);
-
-
 router.post(
   "/create-dealers",
   validate(createDealerSchema),
@@ -135,5 +131,6 @@ router.post("/fixed-properties", adminProtect, createFixedProperty);
 router.get("/fixed-properties/:id", getFixedPropertyById);
 router.patch("/fixed-properties/:id", adminProtect, updateFixedProperty);
 router.delete("/fixed-properties/:id", adminProtect, deleteFixedProperty);
+
 
 export default router;

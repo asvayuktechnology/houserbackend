@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, text, integer, timestamp,boolean, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, text, integer, timestamp,boolean, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 import { json } from "drizzle-orm/pg-core";
 import { pgEnum } from "drizzle-orm/pg-core";
 
@@ -146,12 +146,32 @@ export const dealers = pgTable("dealers", {
 export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),
 
-  propertyId: integer("property_id").notNull(),
-  ownerId: integer("owner_id").notNull(), // 🔥 jisko lead milegi
+  fullName: varchar("fullName", { length: 255 }),
+  phoneNo: varchar("phoneNo", { length: 20 }),
+  city: varchar("city", { length: 100 }),
+  sector: varchar("sector", { length: 100 }),
+  plot: varchar("plot", { length: 100 }),
+  address: text("address"),
+  comment: text("comment"),
+  userId: integer("userId"),
+    userId: integer("userId")
+    .references(() => users.id, { onDelete: "cascade" }),
 
-  userId: integer("user_id"), // 🔥 jisne click kiya
+  createdAt: timestamp("created_at").defaultNow(),
+});
 
-  type: varchar("type", { length: 20 }), // call / whatsapp
+export const post = pgTable("post", {
+  id: serial("id").primaryKey(),
+
+  fullName: varchar("fullName", { length: 255 }),
+  phoneNo: varchar("phoneNo", { length: 20 }),
+  city: varchar("city", { length: 100 }),
+  sector: varchar("sector", { length: 100 }),
+  plot: varchar("plot", { length: 100 }),
+  address: text("address"),
+  comment: text("comment"),
+   userId: integer("userId")
+    .references(() => users.id, { onDelete: "cascade" }),
 
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -211,4 +231,22 @@ export const propertyUnlocks = pgTable("property_unlocks", {
   paymentId: varchar("payment_id", { length: 100 }),
 
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const settings = pgTable("settings", {
+  id: serial("id").primaryKey(),
+
+  email: varchar("email", { length: 255 }),
+
+  phoneNo: varchar("phoneNo", { length: 20 }),
+
+  address: text("address"),
+
+  logo: text("logo"),
+
+  smtp: jsonb("smtp"),
+
+  createdAt: timestamp("created_at").defaultNow(),
+
+  updatedAt: timestamp("updated_at").defaultNow(),
 });

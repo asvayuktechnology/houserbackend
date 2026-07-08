@@ -15,11 +15,13 @@ export const protectAny = (req, res, next) => {
   try {
     // try user token first
     decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
 
   } catch (err1) {
     try {
       // fallback to admin token
       decoded = jwt.verify(token, process.env.JWT_ADMIN_SECRET);
+      req.user = decoded;
 
     } catch (err2) {
       return next(new ApiError("Invalid or expired token", 401));

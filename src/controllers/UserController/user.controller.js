@@ -3,7 +3,7 @@ import { db } from "../../config/db/index.js";
 import { leads } from "../../config/db/schema.js";
 import { users, otps } from "../../config/db/schema.js";
 import { ApiError } from "../../utils/ApiError.js";
-import { eq, and, gt ,sql} from "drizzle-orm";
+import { eq, and, gt ,sql, or, ilike, desc, count } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 
@@ -31,13 +31,13 @@ export const loginUser = asyncHandler(async (req, res, next) => {
   const accessToken = jwt.sign(
     { id: user[0].id, role: user[0].role },
     process.env.JWT_SECRET,
-    { expiresIn: "5m" }
+    {  expiresIn: process.env.JWT_EXPIRES_IN,}
   );
 
   const refreshToken = jwt.sign(
     { id: user[0].id, role: user[0].role },
     process.env.JWT_REFRESH_SECRET,
-    { expiresIn: "7d" }
+    {  expiresIn: process.env.JWT_REFRESH_EXPIRES_IN, }
   );
 
   res.cookie("refreshToken", refreshToken, {

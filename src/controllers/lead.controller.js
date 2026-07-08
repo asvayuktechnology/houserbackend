@@ -1,72 +1,354 @@
 import asyncHandler from "../utils/asyncHandler.js";
-import { db } from "../db/index.js";
-import { leads, properties } from "../db/schema.js";
-import { eq } from "drizzle-orm";
-import AppError from "../utils/AppError.js";
+import { eq, and, or, ilike, desc, count } from "drizzle-orm";
+import { db } from "../config/db/index.js";
+import { leads } from "../config/db/schema.js";
+import { ApiError } from "../utils/ApiError.js";
 
 // ✅ CREATE LEAD
 export const createLead = asyncHandler(async (req, res, next) => {
-  const { propertyId, type } = req.body;
+    const userId = req.user.id;
+       if (!userId) {
+      return next(new ApiError("User authentication required", 401));
+    }
 
-  // 🔍 find property
-  const property = await db
-    .select()
-    .from(properties)
-    .where(eq(properties.id, propertyId));
 
-  if (!property.length) {
-    return next(new AppError("Property not found", 404));
+  const { fullName, phoneNo, city, sector, plot, address, comment } = req.body;
+
+  try {
+    const [lead] = await db
+      .insert(leads)
+      .values({
+        fullName: fullName ?? null,
+        phoneNo: phoneNo ?? null,
+        city: city ?? null,
+        sector: sector ?? null,
+        plot: plot ?? null,
+        address: address ?? null,
+        comment: comment ?? null,
+        userId: userId, 
+      })
+      .returning();
+
+    // console.log("Lead Data:", req.body);
+
+    return res.status(201).json({
+      success: true,
+      message: "Lead created successfully",
+      data: lead,
+    });
+  } catch (error) {
+    console.error("Create Lead Error:", error);
+    return next(error);
   }
-
-  const prop = property[0];
-
-  // 🔥 owner = jisne property create ki
-  const ownerId = prop.createdBy;
-
-  // ✅ create lead
-  const result = await db
-    .insert(leads)
-    .values({
-      propertyId,
-      ownerId,
-      userId: req.user?.id || null,
-      type,
-    })
-    .returning();
-
-  res.status(201).json({
-    success: true,
-    data: result[0],
-  });
 });
 
 // ✅ GET MY LEADS
-export const getMyLeads = asyncHandler(async (req, res, next) => {
-  const userId = req.user?.id;
+export const getAllLeadByAdmin = asyncHandler(async (req, res, next) => {
+  try {
+    const {
+      name,
+      city,
+      phone,
+      export: isExport = "false",
+      page = 1,
+      limit = 20,
+    } = req.query;
 
-  if (!userId) {
-    return next(new AppError("Unauthorized", 401));
+    const conditions = [];
+
+    // Search by name
+    if (name) {
+      conditions.push(
+        ilike(leads.fullName, `%${name}%`)
+      );
+    }
+
+    // Search by city
+    if (city) {
+      conditions.push(
+        ilike(leads.city, `%${city}%`)
+      );
+    }
+
+    // Search by phone
+    if (phone) {
+      conditions.push(
+        ilike(leads.phoneNo, `%${phone}%`)
+      );
+    }
+
+
+
+
+    // Total Count
+    const [countResult] = await db
+      .select({
+        totalCount: count(),
+      })
+      .from(leads)
+      .where(
+        conditions.length
+          ? and(...conditions)
+          : undefined
+      );
+
+
+    const totalCount = Number(countResult?.totalCount || 0);
+
+
+    // Main Query
+    let query = db
+      .select()
+      .from(leads)
+      .where(
+        conditions.length
+          ? and(...conditions)
+          : undefined
+      )
+      .orderBy(desc(leads.createdAt));
+
+
+    // Pagination only when export is false
+    if (isExport !== "true") {
+
+      const pageNum = Number(page) || 1;
+      const limitNum = Number(limit) || 20;
+
+      query = query
+        .limit(limitNum)
+        .offset(
+          (pageNum - 1) * limitNum
+        );
+    }
+
+
+    const data = await query;
+
+
+    return res.status(200).json({
+      success: true,
+      message: "Leads fetched successfully",
+       currentCount: data.length,
+      totalCount,
+    data
+    });
+
+
+  } catch (error) {
+    console.error("Get Lead By Admin Error:", error);
+    return next(error);
   }
+});
 
-  const result = await db
-    .select({
-      leadId: leads.id,
-      type: leads.type,
-      createdAt: leads.createdAt,
+export const getAllLeadByUser = asyncHandler(async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
 
-      propertyId: properties.id,
-      city: properties.city,
-      sector: properties.sector,
-      plotNumber: properties.plotNumber,
-      propertyStatus: properties.propertyStatus,
-    })
-    .from(leads)
-    .leftJoin(properties, eq(leads.propertyId, properties.id))
-    .where(eq(leads.ownerId, userId));
+    if (!userId) {
+      return next(new ApiError("User authentication required", 401));
+    }
 
-  res.status(200).json({
-    success: true,
-    count: result.length,
-    data: result,
-  });
+    const {
+      name,
+      city,
+      phone,
+      export: isExport = "false",
+      page = 1,
+      limit = 20,
+    } = req.query;
+
+
+    const conditions = [
+      eq(leads.userId, userId) // 👈 only logged-in user's leads
+    ];
+
+
+    if (name) {
+      conditions.push(
+        ilike(leads.fullName, `%${name}%`)
+      );
+    }
+
+
+    if (city) {
+      conditions.push(
+        ilike(leads.city, `%${city}%`)
+      );
+    }
+
+
+    if (phone) {
+      conditions.push(
+        ilike(leads.phoneNo, `%${phone}%`)
+      );
+    }
+
+
+    // Total Count
+    const [countResult] = await db
+      .select({
+        totalCount: count(),
+      })
+      .from(leads)
+      .where(
+        and(...conditions)
+      );
+
+
+    const totalCount = Number(countResult?.totalCount || 0);
+
+
+    // Get Leads
+    let query = db
+      .select()
+      .from(leads)
+      .where(
+        and(...conditions)
+      )
+      .orderBy(desc(leads.createdAt));
+
+
+    // Pagination
+    if (isExport !== "true") {
+      const pageNum = Number(page) || 1;
+      const limitNum = Number(limit) || 20;
+
+      query = query
+        .limit(limitNum)
+        .offset(
+          (pageNum - 1) * limitNum
+        );
+    }
+
+
+    const data = await query;
+
+
+    return res.status(200).json({
+      success: true,
+      message: "User leads fetched successfully",
+     currentCount: data.length,
+      totalCount,
+      data,
+    });
+
+
+  } catch (error) {
+    console.error("Get Lead By User Error:", error);
+    return next(error);
+  }
+});
+
+export const getLeadById = asyncHandler(async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return next(new ApiError("Lead id is required", 400));
+    }
+
+    const [lead] = await db
+      .select()
+      .from(leads)
+      .where(eq(leads.id, Number(id)));
+
+    if (!lead) {
+      return next(new ApiError("Lead not found", 404));
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Lead details fetched successfully",
+      data: lead,
+    });
+
+  } catch (error) {
+    console.error("Get Lead By Id Error:", error);
+    return next(error);
+  }
+});
+
+export const updateLead = asyncHandler(async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return next(new ApiError("Lead id is required", 400));
+    }
+
+    const {
+      fullName,
+      phoneNo,
+      city,
+      sector,
+      plot,
+      address,
+      comment,
+    } = req.body;
+
+
+    const [updatedLead] = await db
+      .update(leads)
+      .set({
+        fullName: fullName ?? undefined,
+        phoneNo: phoneNo ?? undefined,
+        city: city ?? undefined,
+        sector: sector ?? undefined,
+        plot: plot ?? undefined,
+        address: address ?? undefined,
+        comment: comment ?? undefined,
+      })
+      .where(eq(leads.id, Number(id)))
+      .returning();
+
+
+    if (!updatedLead) {
+      return next(new ApiError("Lead not found", 404));
+    }
+
+
+    return res.status(200).json({
+      success: true,
+      message: "Lead updated successfully",
+      data: updatedLead,
+    });
+
+
+  } catch (error) {
+    console.error("Update Lead Error:", error);
+    return next(error);
+  }
+});
+export const deleteLead = asyncHandler(async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+
+    if (!id) {
+      return next(new ApiError("Lead id is required", 400));
+    }
+
+
+    const [deletedLead] = await db
+      .delete(leads)
+      .where(eq(leads.id, Number(id)))
+      .returning();
+
+
+    if (!deletedLead) {
+      return next(new ApiError("Lead not found", 404));
+    }
+
+
+    return res.status(200).json({
+      success: true,
+      message: "Lead deleted successfully",
+      data: deletedLead,
+    });
+
+
+  } catch (error) {
+    console.error("Delete Lead Error:", error);
+    return next(error);
+  }
 });

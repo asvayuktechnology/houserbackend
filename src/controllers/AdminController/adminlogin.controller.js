@@ -1,86 +1,92 @@
-// import asyncHandler from "../../utils/asyncHandler.js";
-// import jwt from "jsonwebtoken";
-// import {ApiError} from "../../utils/ApiError.js";
-
-// export const adminLogin = asyncHandler(async (req, res, next) => {
-//   const { email, password } = req.body;
-
-//   // 🔥 validation
-//   if (!email || !password) {
-//     return next(new ApiError("Email and password are required", 400));
-//   }
-
-//   // 🔥 check from .env
-//   if (
-//     email !== process.env.ADMIN_EMAIL ||
-//     password !== process.env.ADMIN_PASSWORD
-//   ) {
-//     return next(new ApiError("Invalid admin credentials", 401));
-//   }
-
-//   // 🔐 generate token
-//   const token = jwt.sign(
-//     { role: "admin" },
-//     process.env.JWT_ADMIN_SECRET,
-//     { expiresIn: "5m" }
-//   );
-
-//   res.json({
-//     success: true,
-//     token,
-//   });
-// });
 
 
 import asyncHandler from "../../utils/asyncHandler.js";
 import jwt from "jsonwebtoken";
 import { ApiError } from "../../utils/ApiError.js";
+import { db } from "../../config/db/index.js";
+import { eq, and, gt ,sql} from "drizzle-orm";
+import { users, otps } from "../../config/db/schema.js";
+import bcrypt from "bcrypt";
 
-export const adminLogin = asyncHandler(async (req, res, next) => {
-  const { email, password } = req.body;
+export const adminLogin = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
 
-  console.log(email,password)
+    if (!email || !password) {
+      return next(new ApiError("Email and password are required", 400));
+    }
 
+    // Find user by email
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email));
 
+    if (!user) {
+      return next(new ApiError("Invalid email or password", 401));
+    }
 
-  if (!email || !password) {
-    return next(new ApiError("Email and password are required", 400));
+    // Compare password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return next(new ApiError("Invalid email or password", 401));
+    }
+
+    // Check admin role
+    if (user.role !== "admin") {
+      return next(new ApiError("Unauthorized", 403));
+    }
+
+    // Access Token
+    const accessToken = jwt.sign(
+      {
+        id: user.id,
+        role: user.role,
+      },
+      process.env.JWT_ADMIN_SECRET,
+      {
+        expiresIn: process.env.JWT_EXPIRES_IN,
+      }
+    );
+
+    // Refresh Token
+    const refreshToken = jwt.sign(
+      {
+        id: user.id,
+        role: user.role,
+      },
+      process.env.JWT_REFRESH_SECRET,
+      {
+        expiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
+      }
+    );
+
+    const refreshDays =
+      parseInt(process.env.JWT_REFRESH_EXPIRES_IN) || 7;
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: refreshDays * 24 * 60 * 60 * 1000,
+    });
+
+    return res.status(200).json({
+      success: true,
+      token: accessToken,
+      user: {
+        id: user.id,
+        name: user.fullName,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error("Admin Login Error:", error);
+    return next(new ApiError(error.message || "Internal Server Error", 500));
   }
-
-  if (
-    email !== process.env.ADMIN_EMAIL ||
-    password !== process.env.ADMIN_PASSWORD
-  ) {
-    return next(new ApiError("Invalid admin credentials", 401));
-  }
-console.log(email)
-  // 🔐 Access Token (short)
-  const accessToken = jwt.sign(
-    { role: "admin" },
-    process.env.JWT_ADMIN_SECRET,
-    { expiresIn: "5m" }
-  );
-
-  // 🔐 Refresh Token (long)
-  const refreshToken = jwt.sign(
-    { role: "admin" },
-    process.env.JWT_REFRESH_SECRET,
-    { expiresIn: "7d" }
-  );
-
-  // 🍪 Send refresh token in cookie
-  res.cookie("refreshToken", refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production", // 👉 true in production
-    sameSite: "strict",
-  });
-
-  res.json({
-    success: true,
-    token: accessToken,
-  });
-});
-
+};
 
 export const refreshToken = asyncHandler(async (req, res, next) => {
   const token = req.cookies.refreshToken;
@@ -90,23 +96,23 @@ export const refreshToken = asyncHandler(async (req, res, next) => {
   }
 
   try {
-    // verify refresh token
     const decoded = jwt.verify(
       token,
       process.env.JWT_REFRESH_SECRET
     );
 
-    // 🔐 new access token
     const newAccessToken = jwt.sign(
       { role: decoded.role },
       process.env.JWT_ADMIN_SECRET,
-      { expiresIn: "5m" }
+      {
+        expiresIn: process.env.JWT_EXPIRES_IN,
+      }
     );
 
     res.json({
+      success: true,
       accessToken: newAccessToken,
     });
-
   } catch (err) {
     return next(new ApiError("Refresh token expired", 401));
   }

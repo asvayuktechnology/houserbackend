@@ -20,11 +20,12 @@ import { loginUserSchema } from "../validators/user.validator.js";
 import { getFixedProperties } from "../controllers/AdminController/fixedProperties.controller.js";
 import { getDealers } from "../controllers/AdminController/dealer.controller.js";
 import { protectAny } from "../middlewares/protectAny.middlreware.js";
+import { adminProtect } from "../middlewares/admin.middleware.js";
 
 const router = express.Router();
 
 // 🔐 AUTH
-router.post("/login", validate(loginUserSchema), loginUser);
+router.post("/user/login", validate(loginUserSchema), loginUser);
 router.post("/send-otp", sendOtp);
 router.post("/verify-otp", verifyOtp);
 
@@ -62,6 +63,8 @@ router.get("/fixed-properties", protectAny, getFixedProperties);
 
 // Dealers (public/user)
 router.get("/dealers", getDealers);
+
+
 
 // router.post("/post-property", validate(createPropertySchema),postProperties );
 
