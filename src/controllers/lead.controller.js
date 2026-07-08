@@ -12,7 +12,7 @@ export const createLead = asyncHandler(async (req, res, next) => {
     }
 
 
-  const { fullName, phoneNo, city, sector, plot, address, comment } = req.body;
+  const { fullName, phoneNo, city, sector, plot, address, comment, type } = req.body;
 
   try {
     const [lead] = await db
@@ -21,6 +21,7 @@ export const createLead = asyncHandler(async (req, res, next) => {
         fullName: fullName ?? null,
         phoneNo: phoneNo ?? null,
         city: city ?? null,
+        type: type ?? null,
         sector: sector ?? null,
         plot: plot ?? null,
         address: address ?? null,
@@ -49,6 +50,7 @@ export const getAllLeadByAdmin = asyncHandler(async (req, res, next) => {
       name,
       city,
       phone,
+      type,
       export: isExport = "false",
       page = 1,
       limit = 20,
@@ -60,6 +62,11 @@ export const getAllLeadByAdmin = asyncHandler(async (req, res, next) => {
     if (name) {
       conditions.push(
         ilike(leads.fullName, `%${name}%`)
+      );
+    }
+    if (type) {
+      conditions.push(
+        ilike(leads.type, type)
       );
     }
 
@@ -152,6 +159,7 @@ export const getAllLeadByUser = asyncHandler(async (req, res, next) => {
       name,
       city,
       phone,
+      type,
       export: isExport = "false",
       page = 1,
       limit = 20,
@@ -166,6 +174,12 @@ export const getAllLeadByUser = asyncHandler(async (req, res, next) => {
     if (name) {
       conditions.push(
         ilike(leads.fullName, `%${name}%`)
+      );
+    }
+
+        if (type) {
+      conditions.push(
+        ilike(leads.type, type)
       );
     }
 
@@ -283,6 +297,7 @@ export const updateLead = asyncHandler(async (req, res, next) => {
       sector,
       plot,
       address,
+      type,
       comment,
     } = req.body;
 
@@ -294,6 +309,7 @@ export const updateLead = asyncHandler(async (req, res, next) => {
         phoneNo: phoneNo ?? undefined,
         city: city ?? undefined,
         sector: sector ?? undefined,
+        type: type ?? undefined,
         plot: plot ?? undefined,
         address: address ?? undefined,
         comment: comment ?? undefined,

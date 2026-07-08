@@ -11,7 +11,7 @@ export const createPost = asyncHandler(async (req, res, next) => {
     }
 
 
-  const { fullName, phoneNo, city, sector, plot, address, comment } = req.body;
+  const { fullName, phoneNo, city, sector, plot, address, comment, type } = req.body;
 
   try {
     const [postData] = await db
@@ -20,6 +20,7 @@ export const createPost = asyncHandler(async (req, res, next) => {
         fullName: fullName ?? null,
         phoneNo: phoneNo ?? null,
         city: city ?? null,
+        type: type ?? null,
         sector: sector ?? null,
         plot: plot ?? null,
         address: address ?? null,
@@ -47,6 +48,7 @@ export const getAllPost = asyncHandler(async (req, res, next) => {
     const {
       name,
       city,
+      type,
       phone,
       export: isExport = "false",
       page = 1,
@@ -66,6 +68,11 @@ export const getAllPost = asyncHandler(async (req, res, next) => {
     if (city) {
       conditions.push(
         ilike(post.city, `%${city}%`)
+      );
+    }
+    if (type) {
+      conditions.push(
+        ilike(post.type, city)
       );
     }
 
@@ -182,6 +189,7 @@ export const updatePost = asyncHandler(async (req, res, next) => {
       fullName,
       phoneNo,
       city,
+      type,
       sector,
       plot,
       address,
@@ -196,6 +204,7 @@ export const updatePost = asyncHandler(async (req, res, next) => {
         phoneNo: phoneNo ?? undefined,
         city: city ?? undefined,
         sector: sector ?? undefined,
+        type: type ?? undefined,
         plot: plot ?? undefined,
         address: address ?? undefined,
         comment: comment ?? undefined,

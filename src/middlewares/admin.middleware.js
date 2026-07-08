@@ -40,7 +40,7 @@ export const adminProtect = (req, res, next) => {
       return next(new ApiError("Access denied. Admin only.", 403));
     }
 
-    req.admin = decoded;
+    req.user = decoded;
 
     next();
   } catch (err) {

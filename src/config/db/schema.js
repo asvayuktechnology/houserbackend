@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, text, integer, timestamp,boolean, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, text, integer, timestamp, boolean, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 import { json } from "drizzle-orm/pg-core";
 import { pgEnum } from "drizzle-orm/pg-core";
 
@@ -8,6 +8,15 @@ export const bannerCategoryEnum = pgEnum("banner_category", [
   "properties",
   "dealer",
 ]);
+
+export const propertyRequestTypeEnum = pgEnum(
+  "property_request_type",
+  [
+    "rent",
+    "buy",
+    "sell",
+  ]
+);
 
 
 // USERS TABLE
@@ -20,7 +29,7 @@ export const users = pgTable("users", {
   avatar: varchar("avatar", { length: 500 }),
 
   password: varchar("password_hash", { length: 255 }).notNull(),
-  role: varchar("role", { length: 10 }).default("user"),  
+  role: varchar("role", { length: 10 }).default("user"),
 
   phone: varchar("phone", { length: 15 }).unique(),
 
@@ -71,8 +80,8 @@ export const properties = pgTable("properties", {
 
   comments: text("comments"),
 
- images: json("images"),
-  
+  images: json("images"),
+
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -153,8 +162,9 @@ export const leads = pgTable("leads", {
   plot: varchar("plot", { length: 100 }),
   address: text("address"),
   comment: text("comment"),
-  userId: integer("userId"),
-    userId: integer("userId")
+  type: propertyRequestTypeEnum("type")
+    .notNull(),
+  userId: integer("userId")
     .references(() => users.id, { onDelete: "cascade" }),
 
   createdAt: timestamp("created_at").defaultNow(),
@@ -169,8 +179,10 @@ export const post = pgTable("post", {
   sector: varchar("sector", { length: 100 }),
   plot: varchar("plot", { length: 100 }),
   address: text("address"),
+  type: propertyRequestTypeEnum("type")
+    .notNull(),
   comment: text("comment"),
-   userId: integer("userId")
+  userId: integer("userId")
     .references(() => users.id, { onDelete: "cascade" }),
 
   createdAt: timestamp("created_at").defaultNow(),
@@ -249,4 +261,47 @@ export const settings = pgTable("settings", {
   createdAt: timestamp("created_at").defaultNow(),
 
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const blogStatusEnum = pgEnum("blog_status", [
+  "draft",
+  "published",
+]);
+
+export const blogs = pgTable("blogs", {
+  id: serial("id").primaryKey(),
+
+  userId: integer("userId")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+
+  title: varchar("title", { length: 255 }).notNull(),
+
+  slug: varchar("slug", { length: 255 })
+    .notNull()
+    .unique(),
+
+  // HTML content store hoga
+  content: text("content").notNull(),
+
+  featuredImage: text("featured_image"),
+
+  status: blogStatusEnum("status")
+    .default("draft")
+    .notNull(),
+
+  tags: jsonb("tags").default([]),
+
+  metaTitle: varchar("meta_title", { length: 255 }),
+  metaDescription: text("meta_description"),
+
+  publishedAt: timestamp("published_at"),
+
+  createdAt: timestamp("created_at")
+    .defaultNow()
+    .notNull(),
+
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .notNull(),
 });
