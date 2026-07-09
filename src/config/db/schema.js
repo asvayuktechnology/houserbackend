@@ -305,3 +305,9 @@ export const blogs = pgTable("blogs", {
     .defaultNow()
     .notNull(),
 });
+
+export const city = pgTable("city", {
+  id: serial("id").primaryKey(),
+  city: varchar("city", { length: 255 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});

@@ -7,6 +7,7 @@ import postRoutes from "./routes/post.route.js";
 import settingRoutes from "./routes/setting.routes.js";
 import leadRoutes from "./routes/lead.route.js";
 import blogRoutes from "./routes/blog.routes.js"
+import cityRoutes from "./routes/city.routes.js"
 import cookieParser from "cookie-parser";
 
 const app = express();
@@ -60,6 +61,7 @@ app.use("/api/", postRoutes);
 app.use("/api/", settingRoutes);
 app.use("/api/", leadRoutes);
 app.use("/api/", blogRoutes);
+app.use("/api/", cityRoutes);
 app.use("/api/admin", adminRoutes);
 
 // error middleware (last)
